@@ -42,8 +42,8 @@ env:
   BUCKET: ubx-docs-users-site
   # Filled in once the distribution exists. The guard below refuses to
   # run while these are placeholders rather than deploying into nothing.
-  DISTRIBUTION_ID: REPLACE_ME_DISTRIBUTION_ID
-  DEPLOY_ROLE: REPLACE_ME_ROLE_ARN
+  DISTRIBUTION_ID: EJSUGHAX0MZCR
+  DEPLOY_ROLE: arn:aws:iam::839333509514:role/ubx-docs-users-deploy
   AWS_REGION: us-east-1
 
 jobs:
