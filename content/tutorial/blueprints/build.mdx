@@ -1,0 +1,142 @@
+---
+title: "Building your first blueprint"
+description: "Turn a real pattern into a reusable, versioned blueprint."
+---
+
+You've shipped this queue pattern several times now, by hand. This
+tutorial turns it into something you author once and reuse forever.
+
+## Write an Ubxfile
+
+`resources:` is a pre-resolved intent/v1 document -- the same shape
+`ubx resolve --from-code --out <file>` produces. Write it by hand for
+this small example, or run a real SDK program through `ubx resolve
+--from-code` to produce it for anything larger:
+
+```bash
+mkdir ci-platform && cd ci-platform
+cat > resources.json << 'EOF'
+{
+  "resources": [
+    {
+      "type": "aws_sqs_queue",
+      "name": "pipeline-events",
+      "op": "create",
+      "config": {
+        "name": "{queue_name}",
+        "message_retention_seconds": "{retention_days * 86400}"
+      }
+    }
+  ]
+}
+EOF
+cat > Ubxfile << 'EOF'
+lang: go
+
+params:
+  queue_name: string, required
+  retention_days: number, default 14
+
+resources: ./resources.json
+EOF
+```
+
+## Build it
+
+```bash
+ubx blueprint build .
+```
+
+```bash
+built 1 resource(s) -> . (go, ts, py: go/bindings.go, go/ciplatform.go, go/go.mod, ts/ciplatform.ts, ts/bindings.ts, py/ciplatform.py, py/bindings.py)
+```
+
+`build` parses `resources.json` once -- it doesn't interpret or draft
+it, nothing here calls an LLM. Every future call, in any language,
+involves zero AI, the same as building did.
+
+## Look at what it produced
+
+```bash
+cat go/ciplatform.go
+```
+
+```go
+func CiPlatform(queueName string, opts ...Option) *ubx.Computed {
+	ubx.PushBlueprintSource("ci-platform")
+	defer ubx.PopBlueprintSource()
+
+	cfg := options{retentionDays: 14}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	return ubx.Resource(Queue, "pipeline-events", QueueConfig{
+		Name:                    queueName,
+		MessageRetentionSeconds: cfg.retentionDays * 86400,
+	})
+}
+```
+
+The `PushBlueprintSource`/`PopBlueprintSource` pair is what tags every
+resource this function creates with real provenance, `ubx why` reads it
+back later to show exactly which blueprint produced a given resource.
+The `{retention_days * 86400}` in your `resources.json` also became a
+real arithmetic expression here, `cfg.retentionDays * 86400`, not a
+frozen number.
+
+## Package and share it
+
+A blueprint that only exists on your own machine isn't reusable yet.
+Package it into a content-addressed tarball, then push it to any real
+OCI registry, GHCR here, but Docker Hub, Artifactory, and Harbor all
+work identically, no new server required:
+
+```bash
+ubx blueprint package . -o ci-platform-v1.tar.gz
+ubx blueprint push ci-platform-v1.tar.gz \
+  --to oci://ghcr.io/acme/ci-platform:v1
+```
+
+```bash
+packaged "ci-platform" -> ci-platform-v1.tar.gz (1 file(s), content hash sha256:d4e5f6...)
+pushed "ci-platform" -> oci://ghcr.io/acme/ci-platform:v1 (1 file(s), content hash sha256:d4e5f6...)
+```
+
+Anyone on your team, on a different machine entirely, pulls it back
+down and confirms it arrived unmodified:
+
+```bash
+ubx blueprint pull oci://ghcr.io/acme/ci-platform:v1 \
+  ./ci-platform
+ubx blueprint verify ./ci-platform
+```
+
+```bash
+verified "ci-platform": content hash sha256:d4e5f6... matches (1 file(s))
+```
+
+`ubx blueprint pull` also resolves a plain git repository (`--ref`
+picks a branch, tag, or commit) or a bare tarball file with no network
+at all, the same command either way. See
+[Distributing a Blueprint](/concepts/blueprint-distribution) for the
+real registry model and why no bespoke Ubiquex-hosted registry was
+ever needed for this.
+
+## What you just did
+
+You described a pattern once, in a pre-resolved document, got back a
+real, callable function in three languages, and proved it survives a
+real round trip to a registry and back, byte for byte. Nobody has to
+re-author this pattern from scratch again, and nobody has to trust that
+a copy of it arrived intact, `ubx blueprint verify` proves it.
+
+This blueprint creates a fixed set of resources. If yours needs to
+create a variable number instead, one subnet per availability zone the
+caller passes in, see
+[List Parameters & Iteration](/concepts/blueprint-list-params).
+
+## Next
+
+<Card title="Authoring a blueprint with an AI assistant" icon="wand-magic-sparkles" href="/tutorial/blueprints/author-with-ai">
+  Draft, validate, and build a blueprint without leaving the conversation.
+</Card>

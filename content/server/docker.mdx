@@ -1,0 +1,172 @@
+---
+title: "Docker deployment"
+description: "A real, verified Dockerfile for running ubx server as a long-lived daemon."
+---
+
+`ubx server` is a long-lived daemon, not a one-shot CLI invocation -- the real `Dockerfile` at the
+repository root is a two-stage build: a `golang` build stage compiling the exact same binary
+[`make build`](https://github.com/Ubiquex/ubiquex/blob/main/Makefile) produces, and a minimal
+`debian:bookworm-slim` runtime stage carrying only what `ubx server` genuinely needs at runtime --
+the real `git` binary (every clone/fetch shells out to it) and real CA certificates (every GitHub
+API call and every git-over-HTTPS operation is TLS).
+
+```dockerfile
+# syntax=docker/dockerfile:1
+
+FROM golang:1.26-bookworm AS build
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+# sdk/ts/ and sdk/py/ are real git submodules -- the build context
+# passed to `docker build` must already have them populated
+# (`git submodule update --init --recursive` on the host first, exactly
+# what `make build` already requires).
+COPY . .
+
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/ubx ./cmd/ubx
+
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /out/ubx /usr/local/bin/ubx
+
+RUN useradd --create-home --shell /usr/sbin/nologin ubx \
+    && mkdir -p /var/lib/ubx-server/repos \
+    && chown -R ubx:ubx /var/lib/ubx-server
+USER ubx
+
+EXPOSE 8080
+
+ENTRYPOINT ["ubx", "server"]
+```
+
+Runs as a real, non-root user (`ubx`) from the start -- `Config.WorkDir`'s own default,
+`/var/lib/ubx-server/repos`, is created and owned by that user in the image itself, not root.
+
+## Build it
+
+```bash
+git submodule update --init --recursive
+docker build -t ubx-server .
+```
+
+Real, verified: this exact build was run end to end, producing a working, real image.
+
+## Run it
+
+```bash
+docker run -d --name ubx-server -p 8080:8080 \
+  -v /etc/ubx-server/github-app.pem:/etc/ubx-server/github-app.pem:ro \
+  -v /etc/ubx-server/ubx-server.yaml:/etc/ubx-server/ubx-server.yaml:ro \
+  -e UBX_SERVER_GITHUB_WEBHOOK_SECRET=<your real webhook secret> \
+  ubx-server --config /etc/ubx-server/ubx-server.yaml
+```
+
+Mount the App's own private key and (optionally) a YAML config as read-only volumes; pass the
+webhook secret as an environment variable, never baked into the image or the YAML file -- see
+[Configuration](/server/configuration).
+
+Add GitLab support with the same environment-variable-only discipline (see [GitLab
+setup](/server/gitlab-setup)):
+
+```bash
+docker run -d --name ubx-server -p 8080:8080 \
+  -e UBX_SERVER_GITLAB_TOKEN=<your real Group Access Token> \
+  -e UBX_SERVER_GITLAB_BOT_USERNAME=<the token's own real bot username> \
+  -e UBX_SERVER_GITLAB_WEBHOOK_SECRET=<your real webhook signing token> \
+  ubx-server --config /etc/ubx-server/ubx-server.yaml
+```
+
+Add Azure DevOps support the same way (see [Azure DevOps setup](/server/azure-devops-setup)):
+
+```bash
+docker run -d --name ubx-server -p 8080:8080 \
+  -e UBX_SERVER_AZURE_DEVOPS_ORGANIZATION=<your real organization> \
+  -e UBX_SERVER_AZURE_DEVOPS_TOKEN=<your real Personal Access Token> \
+  -e UBX_SERVER_AZURE_DEVOPS_BOT_DISPLAY_NAME=<the token's own real, current display name> \
+  -e UBX_SERVER_AZURE_DEVOPS_WEBHOOK_SECRET=<your real Service Hooks shared secret> \
+  ubx-server --config /etc/ubx-server/ubx-server.yaml
+```
+
+Add Bitbucket Server support the same way (see [Bitbucket Server
+setup](/server/bitbucket-setup#bitbucket-server)):
+
+```bash
+docker run -d --name ubx-server -p 8080:8080 \
+  -e UBX_SERVER_BITBUCKET_SERVER_URL=<your real, self-hosted Bitbucket Server base URL> \
+  -e UBX_SERVER_BITBUCKET_SERVER_TOKEN=<your real HTTP access token> \
+  -e UBX_SERVER_BITBUCKET_SERVER_BOT_NAME=<the token's own real, current username> \
+  -e UBX_SERVER_BITBUCKET_SERVER_WEBHOOK_SECRET=<your real, bundled webhook shared secret> \
+  ubx-server --config /etc/ubx-server/ubx-server.yaml
+```
+
+All four platforms' own env vars can be set together on the same real container -- every worked
+example above was verified against one, single running container with all four configured at
+once.
+
+Real, verified: this exact container was started, and its own logs showed a real, successful
+listen:
+
+```bash
+2026/08/14 23:12:28 INFO ubx server: listening addr=:8080
+```
+
+`git --version` and `whoami` inside the running container confirmed the real runtime dependencies
+and non-root user:
+
+```bash
+$ docker exec ubx-server git --version
+git version 2.39.5
+$ docker exec ubx-server whoami
+ubx
+```
+
+## docker-compose
+
+```yaml
+services:
+  ubx-server:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - /etc/ubx-server/github-app.pem:/etc/ubx-server/github-app.pem:ro
+      - /etc/ubx-server/ubx-server.yaml:/etc/ubx-server/ubx-server.yaml:ro
+      - ubx-server-repos:/var/lib/ubx-server/repos
+    environment:
+      UBX_SERVER_GITHUB_WEBHOOK_SECRET: "${UBX_SERVER_GITHUB_WEBHOOK_SECRET}"
+    command: ["--config", "/etc/ubx-server/ubx-server.yaml"]
+    restart: unless-stopped
+
+volumes:
+  ubx-server-repos:
+```
+
+`ubx-server-repos` is a real, named volume for `--work-dir` -- keeping each watched repo's own
+clone across container restarts avoids a full re-clone every time, the same reasoning
+`--drift-watch-interval`'s own "not immediately at startup" default already applies for a different
+reason (see [the workflow](/server/workflow#5-drift-watch)).
+
+## Exposing it publicly
+
+GitHub, GitLab, Azure DevOps, and Bitbucket Server each need to reach `--listen-addr` at a real,
+public HTTPS URL (the Webhook URL configured in [GitHub App setup](/server/github-setup)/[GitLab
+setup](/server/gitlab-setup)/[Azure DevOps setup](/server/azure-devops-setup)/[Bitbucket Server
+setup](/server/bitbucket-setup#bitbucket-server)) -- put a real reverse proxy or load balancer in front of this
+container for TLS termination; `ubx server` itself only ever speaks plain HTTP.
+
+## See also
+
+- [GitHub App setup](/server/github-setup)
+- [GitLab setup](/server/gitlab-setup)
+- [Azure DevOps setup](/server/azure-devops-setup)
+- [Bitbucket Server setup](/server/bitbucket-setup#bitbucket-server)
+- [Bitbucket Cloud setup](/server/bitbucket-setup#bitbucket-cloud)
+- [Configuration](/server/configuration)
+- [The real workflow](/server/workflow)

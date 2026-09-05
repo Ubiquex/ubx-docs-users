@@ -1,0 +1,111 @@
+---
+title: "Promoting a real change"
+description: "Move a proven change from dev to prod, with real evidence."
+---
+
+`ubx promote` never copies dev's resolved values into prod. It
+re-resolves the same original SDK program, fresh, against prod's own
+real config and state.
+
+## Write and accept it in dev
+
+```bash
+cd envs/dev/payments
+```
+
+```go
+package main
+
+import sdk "github.com/ubiquex/ubx-sdk-go/runtime"
+
+func main() {
+	sdk.Main(sdk.Stack("payments", func() {
+		sdk.Intent(sdk.IntentInfo{
+			Summary: "payments own SQS queue, in Go",
+		})
+		sdk.Resource(Queue, "pipeline-events", QueueConfig{
+			Name:                    "pipeline-events",
+			MessageRetentionSeconds: 259200,
+		})
+	}))
+}
+```
+
+Resolve and accept it in dev, same as any other source:
+
+```bash
+ubx resolve --from-code create_platform.go --out resolved.json
+ubx accept resolved.json
+```
+
+```bash
+resolved: payments: 1 create(s), 0 change(s), 0 terminate(s)
+accepted 0f7645e8be31... (stack payments)
+```
+
+Promote it. `ubx promote` re-reads `create_platform.go` from disk and
+re-runs it through the real evaluator, against prod's own real
+context, never a copy of what dev's own run computed:
+
+```bash
+ubx promote 0f7645e8be310a... --to ../../prod/payments
+```
+
+```bash
+promoted 0f7645e8be31… -> payments (../../prod/payments)
+Plan  payments
+
+  + aws_sqs_queue.pipeline-events create
+      message_retention_seconds: 259200
+      name: "pipeline-events"
+
+delta: +1 create(s), ~0 change(s), -0 terminate(s)
+
+plan: ../../prod/payments/.ubx/plans/de145dd66917....json
+ubx-proposal: de145dd66917d5e74c172...
+next: ubx ship de145dd66917
+```
+
+Now edit the program after the fact — say, doubling the retention —
+without re-drafting:
+
+```bash
+ubx promote 0f7645e8be310a... --to ../../prod/payments
+```
+
+```bash
+promote: re-resolve create_platform.go: create_platform.go
+has changed since the source proposal was drafted (was
+sha256:b602525a2996..., now sha256:e818e9bee16c...) --
+promote only re-runs an UNCHANGED program; a changed
+program is new intent, not a promotion. Draft it fresh
+instead, e.g. "ubx plan --from-code create_platform.go"
+```
+
+A real, expected refusal — the accepted source proposal no longer
+describes what's actually on disk, so promoting it would silently
+claim provenance for a program it never actually ran. Draft and accept
+the new version fresh instead.
+
+A proposal accepted before chat was removed as an authoring medium can
+still be explained (`ubx why` still reads a captured dialogue), but
+`ubx promote` refuses to re-resolve one outright: the re-resolution
+machinery a dialogue-sourced promotion depended on is gone along with
+chat itself. Only an SDK-sourced proposal is a real re-derivable case
+today.
+
+## What you just did
+
+You moved a real change from dev to prod as a genuine re-derivation,
+never a blind copy: the same SDK program, re-run against prod's own
+real context, correctly refused once it no longer matched what was
+accepted. The promotion's own lineage is permanently recorded, not just
+implied by a commit message.
+
+## Next
+
+You've completed Environments & Promotion.
+
+<Card title="Blueprints" icon="cubes" href="/tutorial/blueprints">
+  Turn this pattern into something reusable across stacks.
+</Card>

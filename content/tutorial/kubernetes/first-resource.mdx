@@ -1,0 +1,216 @@
+---
+title: "Your first cluster resources"
+description: "A real secret and a real deployment, wired together with a reference."
+---
+
+Same commands, `hashicorp/kubernetes` as the provider. Two real
+resources, one referencing the other, shown in all three languages.
+
+## Set up a stack
+
+```bash
+mkdir payments-k8s && cd payments-k8s
+ubx init --source hashicorp/kubernetes --provider-version 2.31.0
+```
+
+## Author both resources
+
+Real, generated bindings for this provider nest deeply -- Kubernetes'
+own schema represents even a "single" nested block (`metadata`,
+`spec`, a container's own `env_from`) as a list internally, so every
+level below a resource's own config is wrapped in `[...]`, all the way
+down. This is more verbose than the other providers' own first-resource
+tutorials; that's a real, honest reflection of this provider's own
+schema shape, not an invented example.
+
+<Tabs>
+  <Tab title="Go">
+    ```go
+    package main
+
+    import (
+    	ubx "github.com/ubiquex/ubx-sdk-go/runtime"
+    	"github.com/ubiquex/ubx-sdk-kubernetes/sdk/go/kubernetes/deployment"
+    	"github.com/ubiquex/ubx-sdk-kubernetes/sdk/go/kubernetes/secret"
+    )
+
+    func main() {
+    	ubx.Main(ubx.Stack("payments", func() {
+    		ubx.Intent(ubx.IntentInfo{Summary: "payments secret and worker deployment"})
+
+    		dbSecret := ubx.Resource(secret.SecretV1, "db-credentials", secret.SecretV1Config{
+    			Metadata: []secret.SecretV1_Metadata{{
+    				Name:      "db-credentials",
+    				Namespace: "payments",
+    			}},
+    			Data: map[string]any{
+    				"DB_PASSWORD": "changeme",
+    			},
+    		})
+
+    		ubx.Resource(deployment.DeploymentV1, "payments-worker", deployment.DeploymentV1Config{
+    			Metadata: []deployment.DeploymentV1_Metadata{{
+    				Name:      "payments-worker",
+    				Namespace: "payments",
+    			}},
+    			Spec: []deployment.DeploymentV1_Spec{{
+    				Replicas: "1",
+    				Template: []deployment.DeploymentV1_Spec_Template{{
+    					Spec: []deployment.DeploymentV1_Spec_Template_Spec{{
+    						Container: []deployment.DeploymentV1_Spec_Template_Spec_Container{{
+    							Name:  "payments-worker",
+    							Image: "acme/payments-worker:latest",
+    							EnvFrom: []deployment.DeploymentV1_Spec_Template_Spec_Container_EnvFrom{{
+    								SecretRef: []deployment.DeploymentV1_Spec_Template_Spec_Container_EnvFrom_ConfigMapRef{{
+    									Name: dbSecret.Field("metadata").Field("name"),
+    								}},
+    							}},
+    						}},
+    					}},
+    				}},
+    			}},
+    		})
+    	}))
+    }
+    ```
+    Every field in a real generated Go config struct is typed `any` --
+    deliberate, current codegen behavior (`sdk/codegen/templates/go/go.go`):
+    the runtime walks a config value purely by Go struct field name via
+    reflection, never by declared type, so a plain string/int/slice
+    literal assigned to an `any` field is correct, working Go, not
+    something to simplify away. `EnvFrom`'s own `SecretRef` reuses
+    `..._EnvFrom_ConfigMapRef`'s type (both share the identical real
+    `name`/`optional` shape) -- a deliberate dedup, confirmed safe by the
+    same field-name-driven reflection, not a naming mistake in this page.
+  </Tab>
+  <Tab title="TypeScript">
+    ```bash
+    git clone https://github.com/Ubiquex/ubx-sdk-kubernetes.git
+    ```
+    ```typescript
+    import { stack, intent, resource } from "@ubx/sdk";
+    import { SecretV1 } from "./ubx-sdk-kubernetes/sdk/typescript/kubernetes/secret/secret_v1.ts";
+    import { DeploymentV1 } from
+      "./ubx-sdk-kubernetes/sdk/typescript/kubernetes/deployment/deployment_v1.ts";
+
+    export default stack("payments", () => {
+      intent({ summary: "payments secret and worker deployment" });
+
+      const dbSecret = resource(SecretV1, "db-credentials", {
+        metadata: [{ name: "db-credentials", namespace: "payments" }],
+        data: { DB_PASSWORD: "changeme" },
+      });
+
+      resource(DeploymentV1, "payments-worker", {
+        metadata: [{ name: "payments-worker", namespace: "payments" }],
+        spec: [{
+          replicas: "1",
+          template: [{
+            spec: [{
+              container: [{
+                name: "payments-worker",
+                image: "acme/payments-worker:latest",
+                envFrom: [{
+                  secretRef: [{ name: dbSecret.metadata.name }],
+                }],
+              }],
+            }],
+          }],
+        }],
+      });
+    });
+    ```
+    A real, local, cloned import, never a remote URL, the hermetic
+    evaluator's own `--no-remote` flag refuses anything else.
+  </Tab>
+  <Tab title="Python">
+    ```bash
+    git clone https://github.com/Ubiquex/ubx-sdk-kubernetes.git
+    ```
+    Save this file **inside** the cloned repo's own `sdk/python/`
+    directory (alongside the `ubx/` namespace package it imports from),
+    as `ubx-sdk-kubernetes/sdk/python/create_platform.py`. Nested types
+    (`..._Metadata`, `..._EnvFrom`, ...) aren't re-exported at the
+    `ubx.kubernetes.deployment` package level, only the resource binding
+    and its own `Config` are -- import them from the real submodule
+    directly:
+    ```python
+    import ubx_sdk as ubx
+    from ubx.kubernetes.secret import SecretV1, SecretV1Config
+    from ubx.kubernetes.secret.secret_v1 import SecretV1_Metadata
+    from ubx.kubernetes.deployment import DeploymentV1, DeploymentV1Config
+    from ubx.kubernetes.deployment.deployment_v1 import (
+        DeploymentV1_Metadata,
+        DeploymentV1_Spec,
+        DeploymentV1_Spec_Template,
+        DeploymentV1_Spec_Template_Spec,
+        DeploymentV1_Spec_Template_Spec_Container,
+        DeploymentV1_Spec_Template_Spec_Container_EnvFrom,
+        DeploymentV1_Spec_Template_Spec_Container_EnvFrom_ConfigMapRef,
+    )
+
+    def describe():
+        ubx.intent("payments secret and worker deployment")
+
+        db_secret = ubx.resource(SecretV1, "db-credentials", SecretV1Config(
+            metadata=[SecretV1_Metadata(name="db-credentials", namespace="payments")],
+            data={"DB_PASSWORD": "changeme"},
+        ))
+
+        ubx.resource(DeploymentV1, "payments-worker", DeploymentV1Config(
+            metadata=[DeploymentV1_Metadata(name="payments-worker", namespace="payments")],
+            spec=[DeploymentV1_Spec(
+                replicas="1",
+                template=[DeploymentV1_Spec_Template(
+                    spec=[DeploymentV1_Spec_Template_Spec(
+                        container=[DeploymentV1_Spec_Template_Spec_Container(
+                            name="payments-worker",
+                            image="acme/payments-worker:latest",
+                            env_from=[DeploymentV1_Spec_Template_Spec_Container_EnvFrom(
+                                secret_ref=[DeploymentV1_Spec_Template_Spec_Container_EnvFrom_ConfigMapRef(
+                                    name=db_secret.metadata.name,
+                                )],
+                            )],
+                        )],
+                    )],
+                )],
+            )],
+        ))
+
+    if __name__ == "__main__":
+        ubx.run("payments", describe)
+    ```
+  </Tab>
+</Tabs>
+
+The deployment's `envFrom.secretRef.name` is a real reference to the
+secret's own `metadata.name`, never a hardcoded string the two
+resources could quietly fall out of sync on -- resolved through the
+list-kind `metadata` field automatically, no special indexing needed.
+
+## Ship it
+
+```bash
+ubx ship <hash>
+```
+
+```bash
+  ✓ kubernetes_secret_v1.db-credentials     : shipped
+  ✓ kubernetes_deployment_v1.payments-worker : shipped
+2 resource(s), 2 shipped, 0 failed
+```
+
+The deployment correctly waited for the secret to ship first.
+
+## What you just did
+
+You shipped two real, connected Kubernetes resources, a secret and a
+deployment consuming it, and saw the same real reference mechanism
+work identically across all three typed languages -- Go's own deep,
+fully-qualified nested types included, not simplified away.
+
+## Next
+
+<Card title="A real Helm release" icon="helmet-safety" href="/tutorial/kubernetes/helm-release">
+  Ship a real helm_release next to what you just built.
+</Card>

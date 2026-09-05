@@ -26,26 +26,42 @@ function sectionDir(section: string) {
   return join(CONTENT_ROOT, section);
 }
 
-export function listSectionSlugs(section: string): string[] {
-  const dir = sectionDir(section);
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((f) => f.endsWith(".mdx"))
-    .map((f) => f.slice(0, -".mdx".length));
+// Slugs are path segments, not a flat name. The migrated sections are
+// nested (tutorial alone has 12 subdirectories), and all 313 internal
+// links in the corpus are multi-segment paths like
+// /tutorial/aws/first-resource. Flattening the tree would have broken
+// every one of them, so the URL shape is preserved exactly and the route
+// is a catch-all.
+export function listSectionSlugs(section: string): string[][] {
+  const root = sectionDir(section);
+  if (!existsSync(root)) return [];
+  const out: string[][] = [];
+  const walk = (dir: string, prefix: string[]) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        walk(join(dir, entry.name), [...prefix, entry.name]);
+      } else if (entry.name.endsWith(".mdx")) {
+        out.push([...prefix, entry.name.slice(0, -".mdx".length)]);
+      }
+    }
+  };
+  walk(root, []);
+  return out;
 }
 
-export function getDoc(section: string, slug: string): Doc | null {
-  const path = join(sectionDir(section), `${slug}.mdx`);
+export function getDoc(section: string, slug: string | string[]): Doc | null {
+  const parts = Array.isArray(slug) ? slug : [slug];
+  const path = join(sectionDir(section), ...parts.slice(0, -1), `${parts[parts.length - 1]}.mdx`);
   if (!existsSync(path)) return null;
   const parsed = matter(readFileSync(path, "utf8"));
   const data = parsed.data as Record<string, unknown>;
   return {
     section,
-    slug,
+    slug: parts.join("/"),
     // Fall back to the slug rather than throwing: a page with no
     // frontmatter title is a content bug worth seeing rendered, not a
     // build failure that hides which file is at fault.
-    title: typeof data.title === "string" ? data.title : slug,
+    title: typeof data.title === "string" ? data.title : parts.join("/"),
     description:
       typeof data.description === "string" ? data.description : undefined,
     order: typeof data.order === "number" ? data.order : undefined,

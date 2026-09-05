@@ -1,0 +1,233 @@
+---
+title: "Your first AWS resources"
+description: "A real queue and a real IAM role, wired together with a reference."
+---
+
+Same real reference pattern proven against GCP, Azure, and Kubernetes,
+now against AWS directly: two resources, one referencing the other. Pick
+whichever language you'd rather use, all three produce the identical
+resolved result.
+
+## Set up a stack
+
+```bash
+mkdir payments-aws && cd payments-aws
+ubx init --source hashicorp/aws --provider-version 6.54.0
+```
+
+## Author both resources
+
+<Tabs>
+  <Tab title="Go">
+    ```go
+    package main
+
+    import (
+    	"fmt"
+
+    	ubx "github.com/ubiquex/ubx-sdk-go/runtime"
+    	iam "github.com/ubiquex/ubx-sdk-aws/sdk/go/aws/iam"
+    	sqs "github.com/ubiquex/ubx-sdk-aws/sdk/go/aws/sqs"
+    )
+
+    func main() {
+    	ubx.Main(ubx.Stack("payments", func() {
+    		ubx.Intent(ubx.IntentInfo{Summary: "payments queue and ci-runner role"})
+
+    		queue := ubx.Resource(sqs.Queue, "pipeline-events", sqs.QueueConfig{
+    			Name:                    "pipeline-events",
+    			MessageRetentionSeconds: 1209600,
+    		})
+
+    		role := ubx.Resource(iam.Role, "ci-runner", iam.RoleConfig{
+    			Name:             "ci-runner",
+    			AssumeRolePolicy: `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"}]}`,
+    		})
+
+    		policy := ubx.Resource(iam.Policy, "ci-runner-access", iam.PolicyConfig{
+    			Policy: fmt.Sprintf(`{"Statement":[{"Effect":"Allow","Action":"sqs:SendMessage","Resource":{"$ref":{"to":%q}}}]}`, queue.Field("arn").Address()),
+    		})
+
+    		ubx.Resource(iam.RolePolicyAttachment, "ci-runner-access-attachment", iam.RolePolicyAttachmentConfig{
+    			Role:      role.Field("name"),
+    			PolicyArn: policy.Field("arn"),
+    		})
+    	}))
+    }
+    ```
+    `queue.Field("arn")` returns a `*Computed` -- passed directly to
+    `fmt.Sprintf`'s `%q` verb it would stringify to something like
+    `&{payments.aws_sqs_queue.pipeline-events arn}`, not a real value,
+    and a bare `Computed` is never valid JSON. `.Address()` returns its
+    real address string; wrapped in a literal `{"$ref":{"to":"..."}}`
+    marker inside the larger JSON string, the resolver's own
+    JSON-embedded-refs mechanism (`core/resolver/refs.go`) finds and
+    resolves it like any other reference. `RolePolicyAttachmentConfig`
+    also genuinely requires `PolicyArn` -- omitted in earlier revisions
+    of this page, a real gap independent of the reference bug above,
+    fixed here too.
+  </Tab>
+  <Tab title="TypeScript">
+    ```bash
+    git clone https://github.com/Ubiquex/ubx-sdk-aws.git
+    ```
+    ```typescript
+    import { stack, intent, resource, addressOf } from "@ubx/sdk";
+    import { Queue } from "./ubx-sdk-aws/sdk/typescript/aws/sqs/queue.ts";
+    import { Role } from "./ubx-sdk-aws/sdk/typescript/aws/iam/role.ts";
+    import { Policy } from "./ubx-sdk-aws/sdk/typescript/aws/iam/policy.ts";
+    import { RolePolicyAttachment } from "./ubx-sdk-aws/sdk/typescript/aws/iam/role_policy_attachment.ts";
+
+    export default stack("payments", () => {
+      intent({ summary: "payments queue and ci-runner role" });
+
+      const queue = resource(Queue, "pipeline-events", {
+        name: "pipeline-events",
+        messageRetentionSeconds: 1209600,
+      });
+
+      const role = resource(Role, "ci-runner", {
+        name: "ci-runner",
+        assumeRolePolicy: `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"}]}`,
+      });
+
+      const policy = resource(Policy, "ci-runner-access", {
+        policy: `{"Statement":[{"Effect":"Allow","Action":"sqs:SendMessage","Resource":{"$ref":{"to":"${addressOf(queue.arn)}"}}}]}`,
+      });
+
+      resource(RolePolicyAttachment, "ci-runner-access-attachment", {
+        role: role.name,
+        policyArn: policy.arn,
+      });
+    });
+    ```
+    A real, local, cloned import, never a remote URL, the hermetic
+    evaluator's own `--no-remote` flag refuses anything else.
+
+    `queue.arn` is a `Computed<string>` proxy -- interpolating it
+    directly into a template literal (`` `${queue.arn}` ``) throws
+    `ComputedCoercionError` immediately, by design: every coercion path
+    (`Symbol.toPrimitive`, `toString`, `valueOf`, `JSON.stringify`) is a
+    deliberate trap. `addressOf()`, exported from `@ubx/sdk`, returns
+    the proxy's real address string instead; wrapped in a literal
+    `{"$ref":{"to":"..."}}` marker inside the larger JSON string, the
+    resolver's own JSON-embedded-refs mechanism finds and resolves it --
+    the exact same marker shape the runtime's own config serializer
+    produces automatically for a `Computed<T>` assigned directly to a
+    config field. `RolePolicyAttachmentConfig.policyArn` is also
+    genuinely required -- omitted in earlier revisions of this page, a
+    real gap independent of the coercion bug above, fixed here too.
+  </Tab>
+  <Tab title="Python">
+    ```bash
+    git clone https://github.com/Ubiquex/ubx-sdk-aws.git
+    ```
+    Save this file **inside** the cloned repo's own `sdk/python/`
+    directory (alongside the `ubx/` namespace package it imports from),
+    as `ubx-sdk-aws/sdk/python/create_platform.py`:
+    ```python
+    import ubx_sdk as ubx
+    from ubx.aws.sqs import Queue, QueueConfig
+    from ubx.aws.iam import (
+        Role,
+        RoleConfig,
+        Policy,
+        PolicyConfig,
+        RolePolicyAttachment,
+        RolePolicyAttachmentConfig,
+    )
+
+    def describe():
+        ubx.intent("payments queue and ci-runner role")
+
+        queue = ubx.resource(Queue, "pipeline-events", QueueConfig(
+            name="pipeline-events",
+            message_retention_seconds=1209600,
+        ))
+
+        role = ubx.resource(Role, "ci-runner", RoleConfig(
+            name="ci-runner",
+            assume_role_policy='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"}]}',
+        ))
+
+        policy = ubx.resource(Policy, "ci-runner-access", PolicyConfig(
+            policy='{{"Statement":[{{"Effect":"Allow","Action":"sqs:SendMessage","Resource":{{"$ref":{{"to":"{}"}}}}}}]}}'.format(queue.arn.address),
+        ))
+
+        ubx.resource(RolePolicyAttachment, "ci-runner-access-attachment", RolePolicyAttachmentConfig(
+            role=role.name,
+            policy_arn=policy.arn,
+        ))
+
+    if __name__ == "__main__":
+        ubx.run("payments", describe)
+    ```
+    `queue.arn` is a real `Computed` proxy -- passing it straight to
+    `ubx.fmt` (a fictional, non-existent function; no `Sprintf`/`fmt`
+    helper exists anywhere in the real runtime) never worked. `.address`
+    is a real property on `Computed`, returning its address string;
+    doubled `{{`/`}}` escape Python's own `str.format()` brace syntax,
+    leaving a literal `{"$ref":{"to":"..."}}` marker for the resolver's
+    JSON-embedded-refs mechanism to find. `RolePolicyAttachmentConfig`
+    also genuinely requires `policy_arn` -- omitted in earlier revisions
+    of this page, a real gap independent of the reference bug above,
+    fixed here too.
+  </Tab>
+</Tabs>
+
+Every tab resolves to the exact same delta:
+
+```bash
+Plan  payments
+
+  + aws_sqs_queue.pipeline-events create
+      name: "pipeline-events"
+      message_retention_seconds: 1209600
+
+  + aws_iam_role.ci-runner create
+      name: "ci-runner"
+      assume_role_policy: { ... }
+
+  + aws_iam_policy.ci-runner-access create
+      policy: {
+        "Statement": [{
+          "Effect": "Allow",
+          "Action": "sqs:SendMessage",
+          "Resource": $ref:payments.aws_sqs_queue.pipeline-events.arn
+        }]
+      }
+
+  + aws_iam_role_policy_attachment.ci-runner-access-attachment create
+      policy_arn: $ref:payments.aws_iam_policy.ci-runner-access.arn
+      role: $ref:payments.aws_iam_role.ci-runner.name
+
+delta: +4 create(s), ~0 change(s), -0 terminate(s)
+```
+
+## Ship it
+
+```bash
+ubx ship <hash>
+```
+
+```bash
+  ✓ aws_sqs_queue.pipeline-events                             : shipped
+  ✓ aws_iam_role.ci-runner                                    : shipped
+  ✓ aws_iam_policy.ci-runner-access                           : shipped
+  ✓ aws_iam_role_policy_attachment.ci-runner-access-attachment: shipped
+4 resource(s), 4 shipped, 0 failed
+```
+
+The policy and attachment correctly waited for the queue and role to
+ship first, ordered entirely by the references themselves.
+
+## What you just did
+
+You shipped a real, connected set of AWS resources, and saw the exact
+same reference mechanism work identically across all three languages.
+
+## Next
+
+<Card title="Onboarding existing infrastructure" icon="download" href="/tutorial/aws/onboarding">
+  Bring real, already-existing AWS resources under the ledger.
+</Card>

@@ -15,7 +15,14 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SECTIONS = [{ dir: "concepts", label: "Concepts" }];
+const SECTIONS = [
+  { dir: "install", label: "Install" },
+  { dir: "concepts", label: "Concepts" },
+  { dir: "tutorial", label: "Tutorial" },
+  { dir: "cli-reference", label: "CLI reference" },
+  { dir: "integrations", label: "Integrations" },
+  { dir: "server", label: "Server" },
+];
 
 function frontmatter(raw) {
   const m = raw.match(/^---\n([\s\S]*?)\n---/);
@@ -32,9 +39,19 @@ const entries = [];
 for (const { dir, label } of SECTIONS) {
   const abs = join(root, "content", dir);
   if (!existsSync(abs)) continue;
-  for (const file of readdirSync(abs).filter((f) => f.endsWith(".mdx"))) {
-    const slug = file.slice(0, -4);
-    const fm = frontmatter(readFileSync(join(abs, file), "utf8"));
+  // Recursive: the migrated sections are nested (tutorial has 12
+  // subdirectories) and the slug is the path, matching the URL shape.
+  const files = [];
+  const walk = (d, prefix) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      if (e.isDirectory()) walk(join(d, e.name), prefix ? `${prefix}/${e.name}` : e.name);
+      else if (e.name.endsWith(".mdx")) files.push([prefix, e.name]);
+    }
+  };
+  walk(abs, "");
+  for (const [prefix, file] of files) {
+    const slug = prefix ? `${prefix}/${file.slice(0, -4)}` : file.slice(0, -4);
+    const fm = frontmatter(readFileSync(join(abs, prefix, file), "utf8"));
     entries.push({
       title: fm.title || slug,
       subtitle: fm.description || undefined,

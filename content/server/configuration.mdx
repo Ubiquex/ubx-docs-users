@@ -1,0 +1,354 @@
+---
+title: "Configuration"
+description: "Every real flag, environment variable, and YAML key ubx server reads, and how they cascade."
+---
+
+Real, confirmed precedence: **flags override environment variables, environment variables override
+the YAML file, YAML overrides these built-in defaults.** Every layer only overwrites a value the
+layer above it actually set -- an unset flag never blanks out whatever the YAML/env layers already
+established underneath it.
+
+## The real key mapping
+
+Every scalar setting has a real YAML key, a real environment variable
+(`UBX_SERVER_<UPPER_SNAKE_CASE>`), and a real flag (`--kebab-case`):
+
+| YAML key | Environment variable | Flag | Default |
+| --- | --- | --- | --- |
+| `listen_addr` | `UBX_SERVER_LISTEN_ADDR` | `--listen-addr` | `:8080` |
+| `work_dir` | `UBX_SERVER_WORK_DIR` | `--work-dir` | `/var/lib/ubx-server/repos` |
+| `github_app_id` | `UBX_SERVER_GITHUB_APP_ID` | `--github-app-id` | -- |
+| `github_app_private_key_path` | `UBX_SERVER_GITHUB_APP_PRIVATE_KEY_PATH` | `--github-app-private-key-path` | -- |
+| `github_bot_login` | `UBX_SERVER_GITHUB_BOT_LOGIN` | `--github-bot-login` | `ubx[bot]` |
+| `github_api_base_url` | `UBX_SERVER_GITHUB_API_BASE_URL` | `--github-api-base-url` | `https://api.github.com` |
+| -- | `UBX_SERVER_GITHUB_WEBHOOK_SECRET` | `--github-webhook-secret` | -- |
+| -- | `UBX_SERVER_GITLAB_TOKEN` | `--gitlab-token` | -- |
+| `gitlab_bot_username` | `UBX_SERVER_GITLAB_BOT_USERNAME` | `--gitlab-bot-username` | -- |
+| -- | `UBX_SERVER_GITLAB_WEBHOOK_SECRET` | `--gitlab-webhook-secret` | -- |
+| `gitlab_api_base_url` | `UBX_SERVER_GITLAB_API_BASE_URL` | `--gitlab-api-base-url` | `https://gitlab.com` |
+| `azure_devops_organization` | `UBX_SERVER_AZURE_DEVOPS_ORGANIZATION` | `--azure-devops-organization` | -- |
+| -- | `UBX_SERVER_AZURE_DEVOPS_TOKEN` | `--azure-devops-token` | -- |
+| `azure_devops_bot_display_name` | `UBX_SERVER_AZURE_DEVOPS_BOT_DISPLAY_NAME` | `--azure-devops-bot-display-name` | -- |
+| `azure_devops_webhook_secret_header` | `UBX_SERVER_AZURE_DEVOPS_WEBHOOK_SECRET_HEADER` | `--azure-devops-webhook-secret-header` | `X-Ubx-Webhook-Secret` |
+| -- | `UBX_SERVER_AZURE_DEVOPS_WEBHOOK_SECRET` | `--azure-devops-webhook-secret` | -- |
+| `azure_devops_api_base_url` | `UBX_SERVER_AZURE_DEVOPS_API_BASE_URL` | `--azure-devops-api-base-url` | `https://dev.azure.com/{organization}` |
+| `bitbucket_server_url` | `UBX_SERVER_BITBUCKET_SERVER_URL` | `--bitbucket-server-url` | -- |
+| -- | `UBX_SERVER_BITBUCKET_SERVER_TOKEN` | `--bitbucket-server-token` | -- |
+| `bitbucket_server_bot_name` | `UBX_SERVER_BITBUCKET_SERVER_BOT_NAME` | `--bitbucket-server-bot-name` | -- |
+| -- | `UBX_SERVER_BITBUCKET_SERVER_WEBHOOK_SECRET` | `--bitbucket-server-webhook-secret` | -- |
+| -- | `UBX_SERVER_BITBUCKET_CLOUD_TOKEN` | `--bitbucket-cloud-token` | -- |
+| `bitbucket_cloud_bot_account_id` | `UBX_SERVER_BITBUCKET_CLOUD_BOT_ACCOUNT_ID` | `--bitbucket-cloud-bot-account-id` | -- |
+| -- | `UBX_SERVER_BITBUCKET_CLOUD_WEBHOOK_SECRET` | `--bitbucket-cloud-webhook-secret` | -- |
+| `provider_source` | `UBX_SERVER_PROVIDER_SOURCE` | `--provider-source` | -- |
+| `provider_version` | `UBX_SERVER_PROVIDER_VERSION` | `--provider-version` | -- |
+| `provider_config` | `UBX_SERVER_PROVIDER_CONFIG` | `--provider-config` | -- |
+| `ship_on_merge` | `UBX_SERVER_SHIP_ON_MERGE` | `--ship-on-merge` | `true` |
+| `allow_destroy` | `UBX_SERVER_ALLOW_DESTROY` | `--allow-destroy` | `false` |
+| `surface_as` | `UBX_SERVER_SURFACE_AS` | `--surface-as` | `issue` |
+| `drift_watch_interval` | `UBX_SERVER_DRIFT_WATCH_INTERVAL` | `--drift-watch-interval` | `24h` |
+| `repos` (list, see below) | -- | `--repo` (repeatable) | -- |
+
+**`github_webhook_secret` has no YAML key, deliberately.** A webhook secret is exactly the kind of
+value that shouldn't sit in a config file that might get committed -- set it via
+`UBX_SERVER_GITHUB_WEBHOOK_SECRET` or `--github-webhook-secret` only, the same "self-provisioned,
+masked variable, never literally in the file" discipline every [CI/CD
+guide](/integrations/github-actions) already applies to its own platform tokens.
+
+**`azure_devops_token`/`azure_devops_webhook_secret` have no YAML key either, same reasoning.** A
+Personal Access Token and a real, shared-secret webhook header value are exactly the same kind of
+credential `github_webhook_secret`'s own doc comment describes. `azure_devops_webhook_secret_header`
+itself, by contrast, is real, non-secret config (just a header *name*, not a value) -- it does have
+a YAML key, defaulting to `X-Ubx-Webhook-Secret` since Azure DevOps has no fixed convention of its
+own to defer to (confirmed directly against Microsoft's own current Service Hooks docs: no
+cryptographic webhook signature scheme exists at all, only an optional custom header the operator
+names and values themselves).
+
+**`bitbucket_server_token`/`bitbucket_server_webhook_secret` have no YAML key either, same
+reasoning.** An HTTP access token and a real, bundled HMAC-SHA256 webhook secret are exactly the
+same kind of credential `github_webhook_secret`'s own doc comment describes. `bitbucket_server_url`
+itself, by contrast, is real, non-secret config -- it does have a YAML key, and unlike every other
+platform's own API base, it has **no default at all**: Bitbucket Server is self-hosted, with no
+single fixed host the way `gitlab.com`/`dev.azure.com` each are (confirmed directly against
+`bitbucketserver.Client`'s own doc comment) -- always required for Bitbucket Server support.
+
+## Self-hosted instances (UBI-171)
+
+Three of the five platforms `ubx server` supports have a real self-hosted product on a host of your
+own choosing. Each has one real setting for it, and that one setting drives **both** the API calls
+and the git clone:
+
+| Platform | Setting | What you give it |
+| --- | --- | --- |
+| GitHub Enterprise Server | `github_api_base_url` | The instance URL |
+| GitLab (self-managed) | `gitlab_api_base_url` | The instance URL |
+| Azure DevOps Server (on-prem) | `azure_devops_api_base_url` | The **collection** URL |
+
+Each platform's own setup page covers its self-hosted variant too, rather than there being a
+separate page for it: [GitHub App setup](/server/github-setup), [GitLab
+setup](/server/gitlab-setup), [Azure DevOps setup](/server/azure-devops-setup).
+
+Leave a setting unset and that platform uses its own real SaaS default. The other two platforms need
+nothing here: [Bitbucket Server](/server/bitbucket-setup#bitbucket-server) is self-hosted-only and already has
+its own always-required `bitbucket_server_url`, and [Bitbucket
+Cloud](/server/bitbucket-setup#bitbucket-cloud) is SaaS-only with one fixed host.
+
+<Warning>
+  Before UBI-171 (2026-08-15), the GitHub and Azure DevOps settings existed but were labeled
+  test-only, and **neither platform actually worked against a self-hosted instance**. Two real
+  defects, both fixed:
+
+  - The configured URL was used as the API root verbatim. GitHub Enterprise Server serves its REST
+    API under `/api/v3/`, so every call landed at the instance root and returned `404`.
+  - The git clone host was the literal string `github.com` (and `dev.azure.com`), regardless of
+    configuration. A correctly-configured instance would authenticate against itself and then try
+    to clone from the SaaS.
+
+  Both settings are now real production configuration, with a YAML key alongside the flag and
+  environment variable. If you tried a self-hosted deployment before this fix and gave up, it works
+  now.
+</Warning>
+
+### What you give it, exactly
+
+**GitHub Enterprise Server.** Give it the instance URL. `ubx server` applies GHES' own real
+`/api/v3` and `/api/uploads` path conventions for you, so `https://github.example.com` and
+`https://github.example.com/api/v3` both work and mean the same thing. Clones then go to
+`https://github.example.com/{owner}/{name}.git`.
+
+The setting also accepts `https://api.github.com`, which is what the SaaS default resolves to
+internally. That is deliberately **not** translated into an `/api/v3` path, because GitHub's own
+hosted API does not serve one, and it still clones from `github.com` -- the SaaS splits its API and
+its git remotes across two hosts, and no self-hosted product does.
+
+**GitLab (self-managed).** Give it the instance URL. GitLab's own client appends its `api/v4/` path,
+and clones go to `https://gitlab.example.com/{namespace}/{project}.git`. This one already worked
+before UBI-171; it gained a YAML key for consistency.
+
+**Azure DevOps Server (on-prem).** Give it the **collection** URL, including any virtual directory:
+`https://azuredevops.example.com/tfs/DefaultCollection`. The collection plays exactly the role the
+organization plays in a SaaS URL, so `azure_devops_organization` is not consulted for path-building
+when this is set. Clones go to
+`https://azuredevops.example.com/tfs/DefaultCollection/{project}/_git/{repository}`.
+
+One value covers the Graph API too, which is correct and not a shortcut: the separate
+`vssps.dev.azure.com` Graph host exists in the hosted service only. An on-prem deployment serves
+Graph from the same collection, so pointing both at the collection is the real, correct shape.
+Whether your instance serves Graph at all is a separate question worth checking first, and it
+affects two specific authorization paths: see [Azure DevOps setup](/server/azure-devops-setup).
+
+<Note>
+  A self-hosted instance on a private network still has to be reachable from wherever `ubx server`
+  runs, and its TLS certificate has to be trusted by that host. `ubx server` does not disable
+  certificate verification, and offers no setting to.
+</Note>
+
+**`repos` is YAML-only, for the opposite reason:** it's a real list of structured objects
+(platform, and owner/name or project, or project/repository), not a scalar a single flag or
+environment variable can sensibly represent. `--repo` is a real,
+repeatable flag covering the common one-or-few-repos case without needing a YAML file at all -- not
+a full substitute for the list. An entry with no `platform` key defaults to `"github"`, real
+backward compatibility for every config written before GitLab/Azure DevOps/Bitbucket Server support
+existed.
+
+## `repos` is a real, enforced allowlist (UBI-166)
+
+**Every webhook-triggered action -- plan, re-plan, approval-derived acceptance, ship, whether
+automatic or via comment -- refuses outright unless the event's own repository is explicitly
+listed in `repos`.** This applies identically on all five platforms, GitHub included: a GitHub
+App's own installation scope (which repos it's installed on) is a real, coarser gate, but `repos`
+is checked independently and additionally, not assumed to already cover it. For GitLab/Azure
+DevOps/Bitbucket Server/Bitbucket Cloud -- each authenticating with one real, static credential
+that can reach every repository it has permissions on, with no narrower per-repo concept at all --
+`repos` is the
+**only** real scope boundary that exists; nothing else stops a webhook pointed at this server from
+an unintended repository from triggering automation.
+
+<Warning>
+  Before UBI-166 (fixed 2026-08-15), an unlisted repository was never refused -- it silently
+  defaulted to `ledger_dir "."` and ran anyway. If you deployed `ubx server` before this fix,
+  re-check your own `repos` list names every real repository you intend to watch; anything missing
+  now refuses instead of silently running at the repo root.
+</Warning>
+
+A refusal is never silent: `ubx server` logs a real, structured `ERROR`-level line naming the
+platform, the repository, and the event -- for example:
+
+```
+ERROR ubx server: refusing pull_request event -- repository not in Config.Repos allowlist (UBI-166) platform=github repo=acme/unlisted-repo action=opened pr=1
+```
+
+No comment is posted back to an unlisted repository itself (there's nothing to say to a repo that
+was never opted into this server's own automation at all) -- the refusal is loud only to the
+operator's own logs, watch them for exactly this line if a webhook you expected to trigger
+automation appears to do nothing.
+
+## Stack locations are auto-discovered, never declared here (UBI-167)
+
+`repos` entries carry **repository identity only**. There is no `ledger_dir` key, and no path of any
+kind, anywhere in `ubx server`'s own configuration.
+
+Where a stack lives inside a repository is a property of that repository, declared by its own
+[`.ubx/config`](/concepts/config-cascade) -- so that is where `ubx server` reads it from. Once an event's
+repository clears the `repos` allowlist above, `ubx server` checks that repository out at the
+event's own real commit and discovers every directory in it that actually contains a `.ubx/config`
+(any of the four real file names the config cascade recognizes: `config.hcl`, `config.toml`,
+`config`, `config.yaml`). Those directories are the stacks. Nothing has to be declared centrally,
+and nothing has to be kept in sync by hand when a repository adds, moves, or removes a stack.
+
+<Warning>
+  Before UBI-167 (2026-08-15), each `repos` entry declared its own `ledger_dir`. That key is gone.
+  `ubx server` now **refuses to start** if a config file still declares it, rather than silently
+  ignoring it and resolving paths a different way than the file says:
+
+  ```
+  server: config file /etc/ubx-server/ubx-server.yaml: repos[1] declares ledger_dir "stacks/payments", which ubx server no longer accepts (UBI-167) -- a stack's location is auto-discovered from the repository's own .ubx/config now, so remove the key; repos entries carry repository identity only
+  ```
+
+  Delete the `ledger_dir` keys (and any `:ledger_dir` suffix on a `--repo` value, which is refused
+  the same way). No replacement setting is needed: make sure each stack in the repository has its
+  own real `.ubx/config`, which it needs anyway to be a stack at all.
+</Warning>
+
+### Two real stacks in one repository
+
+A single repository can contain more than one real stack -- a repo-root stack and a nested one, or
+several sibling stacks under `stacks/` -- a legitimate layout, not a misconfiguration. When
+discovery finds more than one, `ubx server` fetches the event's own real changed files and picks the
+most specific discovered stack whose own subtree contains at least one of them (a nested stack wins
+over a coexisting repo-root stack, the same "most specific route wins" convention path-based routing
+already uses elsewhere) -- refusing outright, loudly logged, if the changed files touch zero or more
+than one equally-specific stack at once, rather than guessing:
+
+```
+ERROR ubx server: refusing event -- cannot resolve to exactly one discovered stack (UBI-167) platform=github repo=acme/infra pr=42 event=pull_request:opened error="this event's own changed files do not resolve to exactly one discovered stack: this event's own changed files touch 2 equally-specific discovered stacks at once"
+```
+
+Unlike an unlisted repository, this one **is** allowlisted, so the same refusal is also posted back
+as an ordinary PR/MR comment -- a human watching that repository gets told directly that its own
+`.ubx/config` layout is what needs fixing.
+
+This extra resolution only runs for a genuinely multi-stack repository; the common single-stack case
+never fetches changed files at all. A repository with **no** `.ubx/config` anywhere is refused too,
+on its own distinct terms (`no .ubx/config found anywhere in this repository's own checkout`) --
+never silently run at the repo root.
+
+The drift-watch loop has no triggering event, and therefore no changed files to disambiguate with.
+It doesn't need any: drift applies to every stack a repository declares, so each discovered stack
+gets its own real `ubx status --drift` pass.
+
+
+## The YAML file
+
+```yaml
+listen_addr: ":8080"
+work_dir: "/var/lib/ubx-server/repos"
+
+github_app_id: 123456
+github_app_private_key_path: "/etc/ubx-server/github-app.pem"
+github_bot_login: "ubx[bot]"
+# Set only for GitHub Enterprise Server; omit for the real github.com.
+github_api_base_url: "https://github.example.com"
+
+gitlab_bot_username: "group_1234_bot_5678"
+# Set only for a self-managed GitLab; omit for the real gitlab.com.
+gitlab_api_base_url: "https://gitlab.example.com"
+
+azure_devops_organization: "acme-org"
+azure_devops_bot_display_name: "ubx-bot"
+azure_devops_webhook_secret_header: "X-Ubx-Webhook-Secret"
+# Set only for an on-prem Azure DevOps Server; the COLLECTION URL, not
+# the host. Omit for the hosted Azure DevOps Services.
+azure_devops_api_base_url: "https://azuredevops.example.com/tfs/DefaultCollection"
+
+bitbucket_server_url: "https://bitbucket.example.com"
+bitbucket_server_bot_name: "ubx-bot"
+
+provider_source: "hashicorp/aws"
+provider_version: "6.54.0"
+provider_config: '{"region":"us-east-1"}'
+
+ship_on_merge: true
+allow_destroy: false
+surface_as: "issue"
+drift_watch_interval: "24h"
+
+repos:
+  - platform: "github"
+    owner: "acme"
+    name: "infra"
+  - platform: "github"
+    owner: "acme"
+    name: "payments-infra"
+  - platform: "gitlab"
+    project: "acme/backend/infra"
+  - platform: "azuredevops"
+    project: "acme-infra"
+    repository: "payments-infra"
+  - platform: "bitbucketserver"
+    project: "INFRA"
+    repository: "payments-infra"
+  - platform: "bitbucketcloud"
+    project: "acme"
+    repository: "payments-infra"
+```
+
+Point `ubx server` at it with `--config /etc/ubx-server/ubx-server.yaml`. `gitlab_token`,
+`gitlab_webhook_secret`, `azure_devops_token`, `azure_devops_webhook_secret`,
+`bitbucket_server_token`, `bitbucket_server_webhook_secret`, and `github_webhook_secret` are
+deliberately absent here -- real secrets, set only via their own environment variables or flags.
+
+## `--repo`'s own shorthand
+
+```bash
+ubx server --repo acme/infra --repo acme/payments-infra \
+  --repo gitlab:acme/infra --repo gitlab:acme/backend/infra \
+  --repo azuredevops:acme-infra/infra --repo azuredevops:acme-infra/payments-infra \
+  --repo bitbucketserver:INFRA/infra --repo bitbucketserver:INFRA/payments-infra \
+  --repo bitbucketcloud:acme/infra --repo bitbucketcloud:acme/payments-infra
+```
+
+Repository identity only, exactly like a YAML `repos` entry -- no path component (a leftover
+`:ledger_dir` suffix is refused by name, see the UBI-167 warning above). `owner/name` is the GitHub
+shorthand. A real `gitlab:` prefix selects the GitLab shorthand instead --
+`gitlab:namespace/project` -- the project path kept as one whole, opaque string (never split into
+separate fields) since a real GitLab project can be nested under any number of real
+groups/subgroups. See [GitLab setup](/server/gitlab-setup) for the full, real GitLab configuration
+walkthrough. A real `azuredevops:` prefix selects the Azure DevOps shorthand --
+`azuredevops:project/repository` -- project and repository kept as two real, separate identifiers
+(never one opaque string) since a real Azure DevOps project can host many real repositories. See
+[Azure DevOps setup](/server/azure-devops-setup) for the full, real Azure DevOps configuration
+walkthrough. A real `bitbucketserver:` prefix selects the identical two-real-identifier shape for
+Bitbucket Server -- `bitbucketserver:PROJECTKEY/repository-slug` -- matching the existing `ubx
+accept --bitbucket-server-project PROJECTKEY/repository-slug` flag's own real format. See [Bitbucket Server
+setup](/server/bitbucket-setup#bitbucket-server) for the full, real Bitbucket Server configuration
+walkthrough. A real `bitbucketcloud:` prefix selects Bitbucket Cloud --
+`bitbucketcloud:workspace/repo-slug` -- a separate platform with its own separate entries: a
+Bitbucket Server entry never authorizes a Bitbucket Cloud event even when the two segments match.
+See [Bitbucket Cloud setup](/server/bitbucket-setup#bitbucket-cloud).
+
+## A worked example: env overrides YAML
+
+```yaml
+# ubx-server.yaml
+listen_addr: ":9090"
+```
+
+```bash
+UBX_SERVER_LISTEN_ADDR=:7070 ubx server --config ubx-server.yaml
+```
+
+`ubx server` listens on `:7070` -- the environment variable wins over the YAML file, exactly the
+confirmed cascade order. Add `--listen-addr :6060` to the same command and it listens on `:6060`
+instead -- the flag wins over both.
+
+## See also
+
+- [GitHub App setup](/server/github-setup)
+- [GitLab setup](/server/gitlab-setup)
+- [Azure DevOps setup](/server/azure-devops-setup)
+- [Bitbucket Server setup](/server/bitbucket-setup#bitbucket-server)
+- [Bitbucket Cloud setup](/server/bitbucket-setup#bitbucket-cloud)
+- [The real workflow](/server/workflow)
+- [Docker deployment](/server/docker)
+- [`ubx server`](/cli-reference/server)
+- [Remote Ledger Stores](/tutorial/remote-stores)

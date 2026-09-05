@@ -1,0 +1,101 @@
+---
+title: "ubx plan"
+description: "Resolve a hand-written intent file or an SDK program into a reviewable draft, saved for ubx ship."
+---
+
+`ubx plan` is the fast, terraform-shaped path through this project's own
+four-verb ceremony: it fuses resolving and previewing into one command,
+rendering the full receipt right here and saving the result for `ubx
+ship` to pick up later by hash. Nothing about it touches the ledger,
+it's preview and staging, not a signed decision.
+
+It accepts either real input: a hand-written intent file, or an SDK
+program (`--from-code`). Run with no arguments at all in a directory
+with exactly one SDK program, and it detects which one you meant
+automatically, never guessing when more than one candidate exists.
+
+## Usage
+
+```bash
+ubx plan [intent-file] [flags]
+ubx plan --from-code <entry>.go|.ts|.py
+```
+
+## Examples
+
+Planning from a real SDK program:
+
+```bash
+ubx plan --from-code create_platform.go
+```
+
+```bash
+Plan  payments · from create_platform.go
+
+  + aws_sqs_queue.pipeline-events create
+
+delta: +1 create(s), ~0 change(s), -0 terminate(s)
+blast radius: +1 ~0 -0
+
+ubx-proposal: 45f63ce10849...
+next: ubx ship 45f63ce10849...
+```
+
+Planning with no arguments, one SDK program found automatically:
+
+```bash
+ubx plan
+```
+
+```bash
+Plan  payments · from create_platform.go
+...
+```
+
+## Flags
+
+<ResponseField name="--from-code" type="string">
+  Evaluate a TypeScript, Go, or Python SDK program, dispatched by file extension.
+</ResponseField>
+
+<ResponseField name="--ledger-dir" type="string" default=".">
+  Root directory containing `ledger/` and `.ubx/`, also where the plan is saved (default `.`).
+</ResponseField>
+
+<ResponseField name="--source / --provider-version / --provider" type="string">
+  Same provider selection as `ubx ship`.
+</ResponseField>
+
+<ResponseField name="--out" type="string">
+  Additionally write the full resolved proposal to this path.
+</ResponseField>
+
+<ResponseField name="--known-dependent" type="list(string)">
+  A neighbor stack's ledger directory to check for cross-stack orphan references. Repeatable.
+</ResponseField>
+
+<ResponseField name="--full-hashes">
+  Render every hash in full.
+</ResponseField>
+
+<ResponseField name="--show-defaults / --hide-defaults">
+  Force the "AI defaults" block open or collapsed, overriding config.
+</ResponseField>
+
+<ResponseField name="--timeout" type="string" default="120s">
+  One shared budget for provider acquisition and evaluation (default `120s`).
+</ResponseField>
+
+## Notes
+
+The saved plan lives at `.ubx/plans/<hash>.json`, addressed by content
+hash, never a name you choose. `ubx ship <hash>` (or any unique prefix
+of it) looks there directly. This file is a draft, not a ledger entry,
+it carries no weight until something actually accepts or ships it.
+
+## See also
+
+- [The Proposal](/concepts/proposal)
+- [Authoring a Stack](/concepts/mediums)
+- [`ubx ship`](/cli-reference/ship)
+- [`ubx resolve`](/cli-reference/resolve)

@@ -1,12 +1,17 @@
 import { MDXRemote } from "next-mdx-remote/rsc";
 import Link from "next/link";
 import { CodeBlock } from "@ubx/docs-ui";
+import * as mintlify from "./mintlify";
 
-// Maps plain markdown onto this site's own theme tokens. Everything here
-// is a styling decision, not a content one: the 39 Concepts pages moved
-// in this slice contain zero MDX components and zero JSX, so there is
-// nothing to shim, only to style. That was worth confirming before
-// building a component-shimming layer nobody needed.
+// Maps markdown onto this site's own theme tokens, and supplies the
+// Mintlify component shims the migrated pages call.
+//
+// Concepts needed no shims at all: zero MDX components across its 39
+// pages, confirmed before building anything. The other five sections are
+// the opposite, 396 component uses across nine distinct components, so
+// the shim layer is the bulk of slice 3 rather than an afterthought.
+// Measured distribution: ResponseField 189, Card 85, Step 38, Note 36,
+// Tab 20, Warning 14, Steps 9, CardGroup 4, Expandable 1.
 
 function extractText(node: React.ReactNode): string {
   if (typeof node === "string") return node;
@@ -19,6 +24,9 @@ function extractText(node: React.ReactNode): string {
 }
 
 const components = {
+  // Mintlify shims, spread first so the element mappings below still win
+  // for anything that collides with a plain HTML tag name.
+  ...mintlify,
   h1: (p: React.ComponentProps<"h1">) => (
     <h1 className="mt-10 mb-4 text-2xl font-medium text-primary" {...p} />
   ),
