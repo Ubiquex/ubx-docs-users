@@ -1,0 +1,496 @@
+---
+title: "Azure DevOps Pipelines"
+description: "Nightly drift watch, plan-on-pull-request, and merge-triggered shipping, running in Azure Pipelines."
+---
+
+Three independent pipelines, adapted from the [GitHub
+Actions](/integrations/github-actions) reference implementation --
+same real CLI contract underneath (`ubx status --drift`'s exit codes,
+`ubx plan`'s own receipt, `ubx ship`'s own resolution rules), but
+Azure Pipelines' own real mechanisms for credentials, scheduling, pull
+request validation, and notifications, each verified independently
+rather than assumed to mirror GitHub's or GitLab's.
+
+<Note>
+  This covers scheduled, pull-request-triggered, and merge-triggered
+  automation only -- `ubx-agent` (UBI-28, parked) exists for the case
+  this structurally can't cover: tight detection latency and an
+  event-driven loop, not a cron tick or a merge hook. Nothing here is
+  a substitute for that, it's what's real today.
+</Note>
+
+## Merge-derived acceptance
+
+`ubx accept --from-merge` derives acceptance directly from a merged,
+reviewed pull request, the Azure DevOps counterpart to GitHub's and
+GitLab's own PR-merge tier: the merge commit's real existence in git
+history, the proposal file's real content at that commit, the real
+pull request it belongs to, and its real, current reviewer votes,
+read directly from the Azure DevOps API. `--from-merge` takes a
+`--azure-devops-project organization/project/repository` flag --
+structurally parallel to `--github-repo`/`--gitlab-project`, but with
+one more segment: Azure DevOps genuinely needs three real identifiers
+to address a repository (organization, project, repository), not two
+-- confirmed against `cli/accept.go` and the real `azuredevops/`
+package directly, not assumed symmetric with either other guide.
+
+Azure DevOps' own reviewer model is genuinely different from both
+GitHub's and GitLab's, not just differently named -- confirmed
+directly against Microsoft's own current REST API docs. A vote isn't
+binary approve/reject: it's a real five-value scale (`10` approved,
+`5` approved with suggestions, `0` no vote, `-5` waiting for author,
+`-10` rejected). Only `10` counts as an approver here -- `5` is a
+real, qualified vote, not a full approval, and isn't rounded up.
+Reviewers are embedded directly on the pull request object itself, so
+unlike GitHub or GitLab, deriving acceptance needs only **one** real
+API call here, not two.
+
+<Note>
+  A real credential difference from the plan-on-pull-request workflow
+  below, worth knowing before relying on it: that workflow's own
+  comment-posting call authenticates with the job's own
+  `System.AccessToken` (a Bearer-style OAuth token). `ubx`'s own Azure
+  DevOps client authenticates with Basic auth instead, the standard
+  way a Personal Access Token works against the Azure DevOps REST API
+  -- `System.AccessToken` itself won't work here without a real,
+  separately provisioned PAT (`Code (Read)` scope is enough), stored
+  as a masked pipeline variable.
+</Note>
+
+## Prerequisites
+
+Same as the other platforms: a stack repository with a real
+`.ubx/config` and a git-local ledger already committed (see [Install
+and initialize your first stack](/tutorial/setup/install)). Nothing
+here runs `ubx init`.
+
+<Warning>
+  **That git-local ledger is enough for Workflows 1 and 2 below, and not
+  enough for Workflow 3.** Any workflow that runs `ubx accept` or `ubx
+  ship` needs the repository's own `.ubx/config` to point at a real
+  [remote ledger store](/tutorial/remote-stores) (S3, GCS, or Azure
+  Blob) as well.
+
+  `ubx` itself never runs `git commit`/`git push`, so an accept or ship
+  written to a git-directory ledger lands only on the agent's own
+  ephemeral filesystem and is gone the moment the job ends. Nothing
+  errors and nothing is logged: the acceptance is simply never recorded
+  anywhere.
+
+  Drift-watch and plan-on-pull-request are unaffected, since neither
+  appends to the ledger. This is the same requirement [`ubx
+  server`](/server/github-setup#install-it) carries, for the same
+  reason.
+</Warning>
+
+### Installing ubx in the agent
+
+```bash
+curl -L https://github.com/Ubiquex/ubiquex/releases/download/v0.2.0/ubx_0.2.0_linux_amd64.tar.gz | tar xz
+sudo mv ubx /usr/local/bin/
+```
+
+Pin an exact released version, not `latest`.
+
+### Provider credentials: OIDC to AWS, a real but less first-party story
+
+Drift-watch and ship-on-merge both need real AWS credentials.
+Plan-on-pull-request, covered below, is a real, deliberate exception
+the same way it is in the GitHub and GitLab guides -- `ubx plan`'s own
+resolve step never makes a live provider call (confirmed directly
+against `core/resolver/resolver.go`: no `Configure`, no live read,
+ever), so it needs none. Everything below is for the two jobs that do
+need a real AWS role.
+
+Azure Pipelines' own OIDC mechanism (workload identity federation) is
+built for authenticating *to Azure*. Federating from Azure Pipelines
+*to AWS* isn't a native, first-party feature the way it is on GitHub
+or GitLab -- Microsoft removed the AWS OIDC option from the standard
+service connection wizard at one point, and the real, current, working
+path runs through the **AWS Toolkit for Azure DevOps** extension
+(`AmazonWebServices.aws-vsts-tools`, confirmed real and AWS-maintained
+at `github.com/aws/aws-toolkit-azure-devops`, v1.20.0+), not a
+Microsoft-built one.
+
+1. Install the AWS Toolkit for Azure DevOps extension from the
+   Visual Studio Marketplace into your organization.
+2. Create a new **AWS** service connection (Project Settings → Service
+   connections), check **Use OIDC**, and supply the ARN of the IAM
+   role to assume. No access key or secret key.
+3. On first run, the task logs the real OIDC token's `issuer` and
+   `sub` -- capture these, since the issuer is per-organization
+   (`vstoken.dev.azure.com/<ORG_ID>`), not a fixed, documentable URL
+   the way GitHub's or GitLab's is.
+4. In AWS, create an IAM OIDC identity provider using that issuer URL,
+   and an IAM role with a trust policy scoped to the service
+   connection:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {
+      "Federated": "arn:aws:iam::<ACCOUNT_ID>:oidc-provider/vstoken.dev.azure.com/<ORG_ID>"
+    },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringEquals": {
+        "vstoken.dev.azure.com/<ORG_ID>:sub": "sc://<ORG_NAME>/<PROJECT_NAME>/<SERVICE_CONNECTION_NAME>",
+        "vstoken.dev.azure.com/<ORG_ID>:aud": "api://AzureADTokenExchange"
+      }
+    }
+  }]
+}
+```
+
+As on the other platforms, drift-watch and ship-on-merge want
+different real permissions -- two separate service connections (one
+per role) is the least-privilege choice.
+
+The toolkit's own `AWSShellScript@1` task runs a script with the
+resolved credentials already set as the standard `AWS_ACCESS_KEY_ID` /
+`AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` / `AWS_REGION`
+environment variables -- `ubx` needs nothing beyond that, since it
+reads AWS credentials from the process environment like any other
+AWS-SDK-based tool.
+
+### Caching provider binaries
+
+```yaml
+- task: Cache@2
+  inputs:
+    key: 'ubx-providers-hashicorp-aws-6.54.0'
+    path: $(HOME)/.ubx/providers
+```
+
+## Workflow 1: nightly drift watch
+
+Azure Pipelines supports inline `schedules:` cron in the YAML file
+itself, closer to GitHub's model than GitLab's separate schedule
+object -- but a real, easy-to-miss trap: `always: false` is the
+default, meaning a scheduled run is silently **skipped** if nothing in
+the repo has changed since the last successful run. That default is
+correct for a build pipeline, wrong for drift-watch, which needs to
+check *live infrastructure state* on every tick regardless of whether
+any code changed. `always: true` is required here, not optional.
+
+Also worth knowing: scheduled triggers configured through the pipeline
+settings UI take precedence over the YAML `schedules:` block below --
+if both exist, only the UI-defined ones run.
+
+```yaml
+trigger: none
+
+schedules:
+- cron: '0 6 * * *'
+  displayName: Nightly drift watch
+  branches:
+    include:
+    - main
+  always: true
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - bash: |
+      curl -L https://github.com/Ubiquex/ubiquex/releases/download/v0.2.0/ubx_0.2.0_linux_amd64.tar.gz | tar xz
+      sudo mv ubx /usr/local/bin/
+    displayName: Install ubx
+
+  - task: Cache@2
+    inputs:
+      key: 'ubx-providers-hashicorp-aws-6.54.0'
+      path: $(HOME)/.ubx/providers
+    displayName: Cache provider binaries
+
+  - task: AWSShellScript@1
+    inputs:
+      awsCredentials: 'ubx-drift-watch'
+      regionName: 'us-east-1'
+      scriptType: 'inline'
+      inlineScript: |
+        ubx status --drift --stack payments \
+          --source hashicorp/aws --provider-version 6.54.0 \
+          --provider-config '{"region":"us-east-1"}'
+    displayName: Check for drift
+```
+
+`ubx status --drift`'s exit code (`0` clean, `1` drift found, `2`
+unreadable, worse always wins -- see [`ubx
+status`](/cli-reference/status)) fails the step and the run directly.
+
+Azure DevOps' native alerting is real but more team-scoped than
+GitHub's or GitLab's own creator/owner-based model -- there's no
+natural "the person who set up this schedule" analog for a scheduled
+run the way there is on the other two platforms. The reliable,
+verifiable path is an explicit notification subscription (Project
+Settings → Notifications → New subscription → **Build completes**,
+filtered to `Status = Failed` and `Trigger type = Scheduled`),
+targeting a team or group rather than relying on a default that may or
+may not already be enabled for your project. As with the other
+platforms, no custom step or webhook is required inside the pipeline
+itself to get a real alert out of this, and no automatic PR or receipt
+gets posted anywhere -- that's `ubx-agent`'s job (UBI-28), not this
+pipeline's.
+
+## Workflow 2: plan on pull request
+
+`ubx plan` renders the same real receipt covered in [GitHub
+Actions](/integrations/github-actions#workflow-2-plan-on-push) --
+delta, blast radius, and a cost delta line when the resource's own
+cost data is available -- without ever touching the ledger. As stated
+above, this job needs no AWS credentials at all.
+
+### Enabling this: a branch policy, not a YAML trigger
+
+This is a real, structural fork confirmed directly against Microsoft's
+own current documentation, not assumed to work the way it does on
+GitHub or GitLab: the YAML `pr:` trigger keyword is only honored for a
+pipeline whose repo is hosted on **GitHub or Bitbucket Cloud**. For a
+repo hosted in **Azure Repos Git** -- the native, most distinctively
+"Azure DevOps" case, and the one this guide otherwise assumes -- a
+`pr:` block in the pipeline's own YAML does nothing at all. Azure
+Repos Git triggers a pipeline on a pull request through a **branch
+policy** instead, configured outside the YAML file entirely.
+
+<Note>
+  If your repo is actually hosted on GitHub or Bitbucket Cloud but
+  built by Azure Pipelines, the ordinary YAML `pr:` trigger works as
+  documented and the branch policy step below doesn't apply -- this
+  fork is about where the *repo* lives, not where the *pipeline* runs.
+</Note>
+
+To wire this up for an Azure Repos Git repo:
+
+1. Create the pipeline itself first (**Pipelines → New pipeline**,
+   pointing at the YAML file below), with `trigger: none` in its own
+   YAML so it never runs on an ordinary push -- the branch policy is
+   what queues it, not a trigger block.
+2. **Project Settings → Repos → Branches**, select the target branch
+   (`main`), then **Branch policies**.
+3. Next to **Build validation**, select **+**. Pick the pipeline from
+   step 1, set **Trigger** to **Automatic** (queues a new run on every
+   PR create and every push to its source branch -- the direct
+   equivalent of GitHub's `opened`/`synchronize` pair), and **Policy
+   requirement** to **Required** if a failed `ubx plan` resolve should
+   actually block the merge, or **Optional** if it should only inform.
+
+The same policy is available from the Azure DevOps CLI, useful for
+provisioning this alongside the rest of a stack's own setup rather
+than by hand in the UI:
+
+```bash
+az repos policy build create \
+  --blocking true \
+  --branch main \
+  --build-definition-id <PIPELINE_ID> \
+  --display-name "ubx plan" \
+  --enabled true \
+  --manual-queue-only false \
+  --queue-on-source-update-only true \
+  --repository-id <REPOSITORY_ID> \
+  --valid-duration 0
+```
+
+### The pipeline
+
+```yaml
+trigger: none
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - bash: |
+      curl -L https://github.com/Ubiquex/ubiquex/releases/download/v0.2.0/ubx_0.2.0_linux_amd64.tar.gz | tar xz
+      sudo mv ubx /usr/local/bin/
+    displayName: Install ubx
+
+  - task: Cache@2
+    inputs:
+      key: 'ubx-providers-hashicorp-aws-6.54.0'
+      path: $(HOME)/.ubx/providers
+    displayName: Cache provider binaries
+
+  - bash: |
+      set +e
+      ubx plan --ledger-dir . \
+        --source hashicorp/aws --provider-version 6.54.0 \
+        > plan-output.txt 2>&1
+      echo "##vso[task.setvariable variable=planExitCode]$?"
+    displayName: Render the plan
+
+  - bash: |
+      set -euo pipefail
+      python3 -c '
+      import json
+      body = {"comments": [{"parentCommentId": 0, "content": open("plan-output.txt").read(), "commentType": 1}], "status": 1}
+      open("comment-body.json", "w").write(json.dumps(body))
+      '
+      curl -sf -X POST \
+        -H "Authorization: Bearer $SYSTEM_ACCESSTOKEN" \
+        -H "Content-Type: application/json" \
+        -d @comment-body.json \
+        "$(System.CollectionUri)$(System.TeamProject)/_apis/git/repositories/$(Build.Repository.ID)/pullRequests/$(System.PullRequest.PullRequestId)/threads?api-version=7.1"
+    displayName: Post the plan as a PR comment
+    condition: always()
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+  - bash: exit $(planExitCode)
+    displayName: Fail the job if the resolve itself failed
+    condition: always()
+```
+
+Four real, Azure-specific details, none obvious from copying GitHub's
+or GitLab's own workflow:
+
+- **`System.PullRequest.PullRequestId`** is the real, predefined
+  variable holding the PR's own ID, populated only when a run is a
+  branch-policy-triggered validation build -- confirmed against
+  Microsoft's own predefined-variables reference.
+- **`System.AccessToken`** carries the job's own OAuth token but, per
+  Microsoft's own documentation, isn't available to a script by
+  macro-substitution alone -- it has to be mapped explicitly through
+  an `env:` block first, exactly as done on the comment-posting step
+  above.
+- **The Build Service identity needs an explicit grant.** By default
+  a pipeline's own identity can read a repo but not write to it.
+  Posting a comment requires **Project Settings → Repos →
+  Permissions**, selecting the project's own **Build Service**
+  identity, and setting **Contribute to pull requests** to **Allow**
+  -- a real, one-time setup step, not automatic the way `gh`'s or
+  `glab`'s token scoping is on the other two platforms.
+- **There's no `az repos pr comment` command.** Unlike `gh` or
+  `glab`, the Azure DevOps CLI has no dedicated PR-comment subcommand
+  at all -- confirmed directly against the real `az repos pr`
+  reference, not assumed missing. The real, current mechanism is the
+  [Pull Request Threads - Create REST
+  API](https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-threads/create)
+  called directly, as the script above does -- `status: 1` opens the
+  thread as `active`, `parentCommentId: 0` starts a new thread rather
+  than replying to one. As with GitLab's `glab mr note create`, there's
+  no built-in "find and update my last comment" mechanism here either
+  -- every PR-triggering event posts a genuinely new thread, not an
+  updated one. A team wanting single-comment dedup would need to
+  `GET` the PR's existing threads first, find the bot's own last one,
+  and `PATCH` a reply into it -- real and possible against the same
+  REST API, just not built out here to keep this guide's own
+  complexity proportionate to what's actually native.
+
+The `##vso[task.setvariable variable=planExitCode]$?` / `exit
+$(planExitCode)` pair is Azure Pipelines' own way to carry a step's
+exit code past a later, unconditional step -- there's no direct
+per-step output equivalent to GitHub's `steps.<id>.outputs` for this.
+The comment-posting step's own `condition: always()` guarantees the
+plan output reaches the PR either way; the final step re-asserts the
+real resolve failure so the job -- and, if **Required**, the branch
+policy -- still fails on a genuine error, not silently absorbed by the
+comment step succeeding.
+
+## Workflow 3: ship on merge
+
+This is the automation half of [PR-Merge
+Acceptance](/concepts/pr-merge-acceptance): a proposal file, committed
+to a pull request whose description carries a real `ubx-proposal:
+<hash>` trailer, reviewed and merged like any other change. Once it
+lands on `main`, `ubx accept --from-merge` derives the acceptance from
+real, external evidence -- the merge commit's real existence in git
+history, the proposal file's real content at that commit, the real
+pull request it belongs to, and its real, current reviewer votes,
+read directly from the Azure DevOps API. Nothing about who approved it
+is trusted from a typed claim -- the same real guarantee the GitHub
+and GitLab guides both provide, not a weaker, ships-blind version of
+it.
+
+```yaml
+trigger:
+  branches:
+    include:
+    - main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+    fetchDepth: 0
+
+  - bash: |
+      curl -L https://github.com/Ubiquex/ubiquex/releases/download/v0.2.0/ubx_0.2.0_linux_amd64.tar.gz | tar xz
+      sudo mv ubx /usr/local/bin/
+    displayName: Install ubx
+
+  - task: Cache@2
+    inputs:
+      key: 'ubx-providers-hashicorp-aws-6.54.0'
+      path: $(HOME)/.ubx/providers
+    displayName: Cache provider binaries
+
+  - bash: |
+      ubx accept --from-merge $(Build.SourceVersion) \
+        --proposal-file proposals/db-replica.json \
+        --azure-devops-project '<ORGANIZATION>/$(System.TeamProject)/$(Build.Repository.Name)'
+    displayName: Accept from merge
+    env:
+      AZURE_DEVOPS_TOKEN: $(AZURE_DEVOPS_PAT)
+
+  - task: AWSShellScript@1
+    inputs:
+      awsCredentials: 'ubx-ship-on-merge'
+      regionName: 'us-east-1'
+      scriptType: 'inline'
+      inlineScript: |
+        ubx ship --yes \
+          --source hashicorp/aws --provider-version 6.54.0 \
+          --provider-config '{"region":"us-east-1"}'
+    displayName: Ship
+```
+
+`fetchDepth: 0` on the checkout step is required, not optional, same
+reasoning as the GitHub guide's own equivalent note: `ubx accept
+--from-merge` verifies the merge commit against real, local git
+history (`--repo-dir`, defaulting to `.`), and Azure Pipelines' own
+default shallow checkout genuinely doesn't have that history to check
+against.
+
+`<ORGANIZATION>` is a real placeholder, not something derivable from a
+predefined variable the clean way `$(System.TeamProject)` and
+`$(Build.Repository.Name)` are -- Azure Pipelines has no dedicated
+"organization name only" variable; it only appears embedded in
+`$(System.CollectionUri)` (`https://dev.azure.com/<ORGANIZATION>/`),
+which would need parsing. Filling in the one real, fixed value by hand
+here is simpler and just as honest as parsing it out at runtime.
+`AZURE_DEVOPS_PAT` is the real Personal Access Token from the Note
+above, added as a masked pipeline variable (Pipelines → Edit → Variables),
+mapped here through an explicit `env:` block the same way
+`System.AccessToken` needed one on the plan-on-pull-request workflow.
+
+`ubx ship` with no `hash` resolves to the most recent unshipped,
+already-accepted proposal for the stack -- see [`ubx
+ship`](/cli-reference/ship). If `ubx accept --from-merge` finds
+nothing new to accept (a push to `main` that didn't come from a
+proposal's own merge, or one already accepted), `ubx accept` itself
+fails loudly rather than the ship step silently no-oping on the wrong
+assumption -- match this pipeline's own real proposal-file path and
+stack layout before relying on it. `--confirm-destroys` is
+deliberately absent from the example above, same reasoning as the
+GitHub and GitLab guides' own: a PR-merge-derived acceptance carries
+the same explicit human acknowledgment as a local one (see [`ubx
+accept`](/cli-reference/accept)'s own notes) -- a stack whose changes
+can destroy real resources needs that flag added consciously, not
+silently implied by an unattended pipeline run.
+
+## See also
+
+- [GitHub Actions](/integrations/github-actions)
+- [GitLab CI/CD](/integrations/gitlab-ci)
+- [Bamboo](/integrations/bamboo)
+- [CircleCI](/integrations/circleci)
+- [`ubx status`](/cli-reference/status)
+- [`ubx plan`](/cli-reference/plan)
+- [`ubx accept`](/cli-reference/accept)
+- [`ubx ship`](/cli-reference/ship)
+- [PR-Merge Acceptance](/concepts/pr-merge-acceptance)

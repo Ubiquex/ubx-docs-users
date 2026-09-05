@@ -1,0 +1,44 @@
+---
+title: "ubx propose"
+description: "Compute a draft proposal's canonical hash for a PR trailer."
+---
+
+`ubx propose` computes an already-resolved draft's real content hash,
+the exact value a `ubx-proposal:` trailer needs in a pull request body
+before anyone reviews it. It never touches the ledger, and it never
+resolves anything itself -- it's a pure function of a file that already
+exists.
+
+## Usage
+
+```bash
+ubx propose <proposal.json>
+```
+
+## Examples
+
+Hashing an already-resolved draft for a PR trailer:
+
+```bash
+ubx propose resolved.json
+```
+
+```bash
+ubx-proposal: 45f63ce108492f6581fe452cc96421ca50195abae1c365ec3b76d700c38a8974
+```
+
+## Notes
+
+A bare `ubx propose <file>` refuses a file that already has an `id` or
+`acceptance`, propose is for drafts only. This command exists because
+the hash a PR trailer needs must be computed before anyone reviews the
+PR, `ubx accept --from-merge` later checks that exact hash against what
+the trailer claims. `ubx resolve --from-code` is the SDK's own one-step
+equivalent for producing that draft in the first place.
+
+## See also
+
+- [PR-Merge Acceptance](/concepts/pr-merge-acceptance)
+- [Authoring a Stack](/concepts/mediums)
+- [`ubx resolve`](/cli-reference/resolve)
+- [`ubx accept`](/cli-reference/accept)

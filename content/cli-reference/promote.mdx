@@ -1,0 +1,115 @@
+---
+title: "ubx promote"
+description: "Re-resolve an accepted proposal's own SDK program against a target environment."
+---
+
+Promotion never copies a proposal's resolved values into a new
+environment. `ubx promote` re-reads the source proposal's own SDK
+program and resolves it fresh, against the target environment's real
+config, real providers, real live state. What ships to prod is a genuine
+re-derivation, not a stale replay of what staging happened to compute.
+
+## Usage
+
+```bash
+ubx promote <proposal-id> --to <target-dir> [flags]
+```
+
+## Examples
+
+```bash
+ubx promote a1b2c3d4... --to ../prod/payments
+```
+
+```bash
+promoted a1b2c3d4... -> payments (../prod/payments)
+Plan  payments · promoted from staging/a1b2c3d4...
+  + aws_sqs_queue.pipeline-events create
+
+plan: ../prod/payments/.ubx/plans/8224643b....json
+ubx-proposal: 8224643bbbc5...
+next: ubx ship 8224643bbbc5...
+```
+
+## Flags
+
+<ResponseField name="--to" type="string">
+  Target environment's own directory, its own config, ledger, and providers. Required.
+</ResponseField>
+
+<ResponseField name="--to-stack" type="string">
+  Target stack name, if different from the source's own (default: same name).
+</ResponseField>
+
+<ResponseField name="--ledger-dir" type="string" default=".">
+  Directory containing the *source* proposal's own ledger (default `.`).
+</ResponseField>
+
+<ResponseField name="--stack" type="string">
+  Which stack to open the source proposal from, only for a remote ledger store.
+</ResponseField>
+
+<ResponseField name="--source / --provider-version / --provider" type="string">
+  Provider selection for the target.
+</ResponseField>
+
+<ResponseField name="--out" type="string">
+  Additionally write the full resolved proposal here.
+</ResponseField>
+
+<ResponseField name="--known-dependent" type="list(string)">
+  A neighbor stack's ledger to check for orphan references in the target's own graph.
+</ResponseField>
+
+<ResponseField name="--timeout" type="string" default="3m">
+  One shared budget for re-evaluating the SDK program and provider acquisition (default `3m`).
+</ResponseField>
+
+## Notes
+
+The source must be an already-*accepted* proposal, not an unaccepted
+plan draft, promotion evidence vouches for something that went through
+the normal accept ceremony.
+
+An SDK-sourced proposal (`.go`/`.ts`/`.py`) is the one real re-derivable
+case: the entry file is re-read from disk, and its `content_hash` is
+checked *first* -- an unchanged file is re-run through the real
+evaluator against the target's own real context (a program can
+legitimately read the target stack's own name and config and resolve
+differently, correctly, per target); a changed file is refused outright,
+naming both hashes, since that's new intent, not a promotion.
+
+A proposal whose only re-resolvable source is a captured `ubx chat`
+dialogue is refused outright: chat was removed as an authoring medium,
+along with the re-resolution machinery a dialogue-sourced promotion
+depended on. `ubx why` still reads and explains a dialogue captured
+before that change; `ubx promote` no longer re-resolves one.
+
+An SDK ref is read relative to the current working directory, the same
+place the original `ubx resolve --from-code`/`ubx plan --from-code`
+read it from.
+
+## Refusal cases
+
+<Expandable title="SDK program changed since the source proposal was drafted">
+```bash
+ubx promote 0f7645e8be31… --to ../../prod/payments
+```
+```bash
+promote: re-resolve create_platform.go: create_platform.go
+has changed since the source proposal was drafted (was
+sha256:b602525a2996..., now sha256:e818e9bee16c...) --
+promote only re-runs an UNCHANGED program; a changed
+program is new intent, not a promotion. Draft it fresh
+instead, e.g. "ubx plan --from-code create_platform.go"
+```
+A real, expected refusal, not an edge case to work around --
+editing the program after the source proposal was accepted
+means the source proposal no longer describes what's on
+disk. Draft and accept fresh instead.
+</Expandable>
+
+## See also
+
+- [Addressing, Environments & Promotion](/concepts/environments)
+- [`ubx accept`](/cli-reference/accept)

@@ -20,12 +20,19 @@ export const NAV: NavLink[] = [
 // slice; the rest are declared here so the shell is proven against the
 // real tab count rather than against one tab, but they are NOT linked
 // from the home page until their content exists (see SECTIONS below).
+// The real sections, corrected against Mintlify's own docs.json rather
+// than the ticket's original list (UBI-247). That list named a
+// Blueprints section which does not exist (it is a group inside
+// Tutorial, and the blueprint concept pages moved with Concepts) and a
+// Guides section which does not either, while omitting ubx server and
+// Install.
 export const TABS: SectionTab[] = [
+  { label: "Install", href: "/install" },
   { label: "Concepts", href: "/concepts" },
-  { label: "Guides", href: "/guides" },
+  { label: "Tutorial", href: "/tutorial" },
   { label: "CLI reference", href: "/cli-reference" },
-  { label: "Tutorials", href: "/tutorials" },
-  { label: "Blueprints", href: "/blueprints" },
+  { label: "Integrations", href: "/integrations" },
+  { label: "Server", href: "/server" },
 ];
 
 export type Section = {
@@ -44,6 +51,13 @@ export type Section = {
 // sent to an empty page. Flip to true as each section lands.
 export const SECTIONS: Section[] = [
   {
+    slug: "install",
+    label: "Install",
+    description: "Getting ubx onto your machine and into your first stack.",
+    icon: "▼",
+    ready: true,
+  },
+  {
     slug: "concepts",
     label: "Concepts",
     description:
@@ -52,12 +66,12 @@ export const SECTIONS: Section[] = [
     ready: true,
   },
   {
-    slug: "guides",
-    label: "Guides",
+    slug: "tutorial",
+    label: "Tutorial",
     description:
-      "Installing ubx, wiring it into CI, and the integration paths for GitHub, GitLab, Azure DevOps and the rest.",
-    icon: "▤",
-    ready: false,
+      "End-to-end walkthroughs against real providers, from a first resource to promotion across environments and blueprints.",
+    icon: "◎",
+    ready: true,
   },
   {
     slug: "cli-reference",
@@ -65,23 +79,23 @@ export const SECTIONS: Section[] = [
     description:
       "Every ubx command, flag and exit condition. Always describes the latest release rather than being versioned.",
     icon: "▸",
-    ready: false,
+    ready: true,
   },
   {
-    slug: "tutorials",
-    label: "Tutorials",
+    slug: "integrations",
+    label: "Integrations",
     description:
-      "End-to-end walkthroughs against real providers, from a first resource to promotion across environments.",
-    icon: "◎",
-    ready: false,
+      "Wiring ubx into GitHub Actions, GitLab CI, Azure DevOps, CircleCI, Bamboo, and AI assistants.",
+    icon: "▤",
+    ready: true,
   },
   {
-    slug: "blueprints",
-    label: "Blueprints",
+    slug: "server",
+    label: "Server",
     description:
-      "Composing and distributing reusable infrastructure, and calling blueprints from your own stacks.",
-    icon: "◫",
-    ready: false,
+      "Running ubx server: configuration, deployment, and the API it exposes.",
+    icon: "▣",
+    ready: true,
   },
 ];
 

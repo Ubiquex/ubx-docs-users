@@ -1,0 +1,75 @@
+---
+title: "ubx mcp"
+description: "Serve ubx's ledger and blueprint-authoring tools over MCP, for an AI assistant to call directly."
+---
+
+`ubx mcp` runs the same binary in server mode, serving the Model Context
+Protocol over stdio so an AI assistant can ask real questions about your
+infrastructure, and help author a blueprint, directly in conversation,
+without you first translating "who changed this bucket" into the right
+CLI flags yourself.
+
+Eight tools are exposed, in two groups. Three are read-only against
+your ledger and live infrastructure, `why`, `status`, `scan`, each
+producing the exact same JSON shape the equivalent `--json` CLI flag
+already does. Five help author a blueprint, `draft_ubxfile`,
+`validate_ubxfile`, `build_blueprint`, `list_blueprints`,
+`describe_blueprint`, none of which write to a repository or touch live
+infrastructure at all. No tool in either group has execution authority
+over a real resource.
+
+## Usage
+
+```bash
+ubx mcp
+```
+
+## Examples
+
+Connecting a client (e.g. Claude Code's own MCP config):
+
+```json
+{
+  "mcpServers": {
+    "ubx": { "command": "ubx", "args": ["mcp"] }
+  }
+}
+```
+
+Once connected, an assistant can call `ubx_why`, `ubx_status`, or
+`ubx_scan` directly, the same real ledger data `ubx why`/`ubx status`/`ubx
+scan` would show from your own terminal, or `draft_ubxfile`/
+`validate_ubxfile`/`build_blueprint` to help you author a new blueprint
+without ever leaving the conversation.
+
+## Flags
+
+This command takes no flags. Configuration is discovered from the
+process's own working directory, exactly like every other `ubx`
+command, point your MCP client's working directory at a real ledger
+checkout to get the same defaults a human sitting there would.
+
+## Notes
+
+`ubx accept`, `ubx ship`, `ubx writeback`, `ubx revert-plan`, `scan
+--surface-as`, and `ubx blueprint push` are all deliberately excluded.
+Accepting a proposal and publishing a blueprint are both recorded human
+decisions, never something an assistant does on your behalf
+mid-conversation. A sensitive attribute is never returned as real
+material through any of the three ledger tools, only its salted
+fingerprint, the same redaction every other surface in this project
+already applies.
+
+`draft_ubxfile`, `validate_ubxfile`, and `build_blueprint` never write
+to a repository, no opt-in either, content comes back in the response
+itself. See [AI-Assisted Blueprint Authoring](/concepts/mcp-blueprint-tools)
+for the full design and why the line sits exactly here.
+
+## See also
+
+- [MCP Server](/concepts/mcp-server)
+- [AI-Assisted Blueprint Authoring](/concepts/mcp-blueprint-tools)
+- [`ubx why`](/cli-reference/why)
+- [`ubx status`](/cli-reference/status)
+- [`ubx scan`](/cli-reference/scan)
+- [`ubx blueprint`](/cli-reference/blueprint)
