@@ -12,26 +12,35 @@ committed before it is applied.
 
 ## Status
 
-Partially created. **This is not deployed yet.**
+All infrastructure exists. `docs.ubiquex.io` still resolves to Mintlify:
+the alias and the DNS cutover are the last steps, deliberately after the
+site has been confirmed serving on its own CloudFront domain.
 
 | Resource | Identifier | State |
 |---|---|---|
 | S3 bucket | `ubx-docs-users-site` | created |
 | Origin Access Control | `E3VO6LIHTNN70Q` | created |
 | CloudFront Function | `ubx-docs-users-rewrite` | created, **published to LIVE** |
-| CloudFront distribution | see below | **not created** |
-| ACM certificate (us-east-1) | for `docs.ubiquex.io` | **not requested** |
-| IAM deploy role | `ubx-docs-users-deploy` | **not created** |
-| Bucket policy | conditioned on the distribution ARN | **not applied** |
+| CloudFront distribution | `EJSUGHAX0MZCR` (`d3919omo84z6mg.cloudfront.net`) | created |
+| ACM certificate (us-east-1) | `2a020e28-a797-4440-a5f7-c79564570bbb` | **ISSUED** |
+| IAM deploy role | `ubx-docs-users-deploy` | created, policy scoped to the above |
+| Bucket policy | conditioned on the distribution ARN | applied |
 
 The bucket blocks all public access and has default AES256 encryption.
 It is not an S3 website endpoint, which is what makes Origin Access
 Control usable at all. It is currently unreadable by anything, which is
 correct until the distribution exists to grant read to.
 
-`deploy.yml` refuses to run while `DISTRIBUTION_ID` and `DEPLOY_ROLE`
-are placeholders, rather than failing deep inside the AWS CLI or
-deploying somewhere unintended.
+`deploy.yml` and `function-publish.yml` now carry the real distribution
+ID and role ARN. `deploy.yml` keeps its guard refusing to run on a
+placeholder, which stays useful if this is ever stood up again in
+another account.
+
+`infra/iam/deploy-policy.json` deliberately keeps its
+`REPLACE_ME_DISTRIBUTION_ID`. It is a template that `create.sh`
+substitutes at run time, not a finished document. Hardcoding the current
+ID would silently produce a policy scoped to a dead distribution if the
+distribution were ever recreated.
 
 ## Remaining steps
 

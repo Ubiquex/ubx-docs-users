@@ -34,7 +34,7 @@ permissions:
 
 env:
   FUNCTION_NAME: ubx-docs-users-rewrite
-  DISTRIBUTION_ID: REPLACE_ME_DISTRIBUTION_ID
+  DISTRIBUTION_ID: EJSUGHAX0MZCR
   AWS_REGION: us-east-1
 
 jobs:
@@ -67,7 +67,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: REPLACE_ME_ROLE_ARN
+          role-to-assume: arn:aws:iam::839333509514:role/ubx-docs-users-deploy
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Show what will change
