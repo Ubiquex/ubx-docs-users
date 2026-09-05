@@ -35,102 +35,52 @@ deploying somewhere unintended.
 
 ## Remaining steps
 
-Each is a single command. They must run in this order: the bucket policy
-names the distribution ARN, and the deploy policy names the distribution
-ID.
+Three resources could not be created from the agent session: the
+CloudFront distribution, the IAM deploy role and the ACM certificate.
+The permission classifier refused those calls, and they were not worked
+around.
 
-### 1. The distribution
+Run `./infra/create.sh` from the repo root, with credentials for account
+`839333509514`. It creates all three plus the bucket policy, in the one
+order that works, and prints the ACM validation CNAME along with the two
+values `deploy.yml` needs.
 
-```
-aws cloudfront create-distribution \
-  --distribution-config file://infra/cloudfront/distribution.json
-```
+It is a script rather than a list of commands because the ordering
+carries real dependencies: the bucket policy names the distribution ARN
+and the deploy role's policy names the distribution ID, so both wait on
+the distribution and both need an ID substituted in. Hand-copying an ID
+between six commands is where a typo produces a policy that reads
+correctly and grants nothing. It is safe to re-run; every step looks up
+what it would create and skips it if present.
 
-`distribution.json` is the exact config, already carrying the real OAC
-ID and the real function ARN. Record the returned `Id` and `DomainName`.
+It deliberately does not touch DNS. See step 7 below.
 
-### 2. The bucket policy, granting read to that distribution alone
+### After it runs
 
-```
-DIST_ID=<the Id from step 1>
-cat > /tmp/bucket-policy.json <<JSON
-{
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Sid": "AllowCloudFrontServicePrincipalReadOnly",
-    "Effect": "Allow",
-    "Principal": { "Service": "cloudfront.amazonaws.com" },
-    "Action": "s3:GetObject",
-    "Resource": "arn:aws:s3:::ubx-docs-users-site/*",
-    "Condition": {
-      "StringEquals": {
-        "AWS:SourceArn": "arn:aws:cloudfront::839333509514:distribution/$DIST_ID"
-      }
-    }
-  }]
-}
-JSON
-aws s3api put-bucket-policy --bucket ubx-docs-users-site \
-  --policy file:///tmp/bucket-policy.json
-```
+1. Add the printed CNAME at name.com and wait for the certificate to
+   reach `ISSUED`.
+2. Fill `REPLACE_ME_DISTRIBUTION_ID` and `REPLACE_ME_ROLE_ARN` in
+   `.github/workflows/deploy.yml`, plus `REPLACE_ME_DISTRIBUTION_ID` in
+   `.github/workflows/function-publish.yml`. `deploy.yml` refuses to run
+   while they are placeholders rather than deploying into nothing.
+3. Deploy and verify on the CloudFront domain, before any DNS change.
+   Push to `main` or dispatch `deploy`. Its own last step fetches real
+   pages through CloudFront and fails if they do not serve. Check by
+   hand too:
 
-### 3. The IAM deploy role
+   ```
+   curl -sI https://<CLOUDFRONT_HOST>/concepts | head -1
+   curl -sI https://<CLOUDFRONT_HOST>/tutorial/sdk/install | head -1
+   ```
 
-`trust-policy.json` carries both subject forms. The second is the
-immutable one (`repo:Ubiquex@232584184/ubx-docs-users@1358377574:*`),
-using this repo's real numeric ID rather than a wildcard. On the
-provider site, a trust policy written with only the first form failed
-with `Not authorized to perform sts:AssumeRoleWithWebIdentity` because
-that org has immutable subject claims enabled.
-
-```
-aws iam create-role --role-name ubx-docs-users-deploy \
-  --assume-role-policy-document file://infra/iam/trust-policy.json
-
-# fill REPLACE_ME_DISTRIBUTION_ID in deploy-policy.json first
-aws iam put-role-policy --role-name ubx-docs-users-deploy \
-  --policy-name ubx-docs-users-deploy \
-  --policy-document file://infra/iam/deploy-policy.json
-```
-
-### 4. Fill in `deploy.yml`
-
-Replace `REPLACE_ME_DISTRIBUTION_ID` and `REPLACE_ME_ROLE_ARN` in
-`.github/workflows/deploy.yml`, and `REPLACE_ME_DISTRIBUTION_ID` in
-`.github/workflows/function-publish.yml` and
-`infra/iam/deploy-policy.json`.
-
-### 5. Deploy and verify on the CloudFront domain, before any DNS change
-
-Push to `main`, or dispatch `deploy`. The workflow's own last step
-fetches real pages through CloudFront and fails if they do not serve.
-Verify by hand too:
-
-```
-curl -sI https://<DomainName>/concepts | head -1
-curl -sI https://<DomainName>/tutorial/sdk/install | head -1
-```
-
-### 6. The certificate
-
-```
-aws acm request-certificate --region us-east-1 \
-  --domain-name docs.ubiquex.io --validation-method DNS
-aws acm describe-certificate --region us-east-1 \
-  --certificate-arn <arn> \
-  --query 'Certificate.DomainValidationOptions[0].ResourceRecord'
-```
-
-Add that CNAME at name.com, wait for `ISSUED`, then attach the
-certificate and the `docs.ubiquex.io` alias to the distribution.
-
-### 7. The DNS cutover, last and deliberately separate
-
-`docs.ubiquex.io` is **live on Mintlify today**, `CNAME
-cname.mintlify.builders`. Repointing it at CloudFront is what actually
-switches the public documentation site over, so it happens only after
-step 5 has confirmed the new site serves correctly on its CloudFront
-domain. Nothing before step 7 is visible to a reader.
+4. Attach the certificate and the `docs.ubiquex.io` alias to the
+   distribution.
+5. **The DNS cutover, last and deliberately separate.**
+   `docs.ubiquex.io` is live on Mintlify today, `CNAME
+   cname.mintlify.builders`. Repointing it at CloudFront is what
+   actually switches the public documentation site over, so it happens
+   only after step 3 has confirmed the new site serves correctly.
+   Nothing before that point is visible to a reader.
 
 ## cloudfront/rewrite.js
 
