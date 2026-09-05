@@ -1,0 +1,73 @@
+---
+title: "The Trust Boundary"
+description: "SDK code describes intent. It never has execution authority."
+---
+
+A real question has to be answered up front for any system that turns
+code into real infrastructure: what happens if the code is wrong, or
+makes an assumption you'd never have agreed to? The answer in ubx is
+structural, not a policy someone could forget to follow: your SDK
+program can never actually apply anything. It can only describe intent.
+
+## How it works
+
+Your `resource(...)` calls run in a sandboxed evaluator and produce a
+draft, an unsigned proposal, sitting in `.ubx/plans/`. That's the entire
+job. Resolving and shipping are two completely separate steps in the
+code, and nothing lets a draft skip straight to becoming real.
+
+An SDK program can carry real, explicit assumptions and defaults, the
+same intent/v1 wire fields a hand-written intent file can also set
+directly. None of that stays hidden. Every one of those choices gets
+written directly into the receipt you see before shipping.
+
+```bash
+ubx plan --from-code create_platform.go
+```
+
+```bash
+AI defaults, you are signing these:
+  message_retention_seconds: defaulted to 86400 (1 day),
+    not stated in your program
+
+Ship payments · +1 create(s)
+Only 'yes' accepted:
+```
+
+## Why "just trust the code" doesn't work
+
+A system where a program could resolve and apply a change in one step
+means every mistake, every wrong assumption, every bug, goes straight
+into your real infrastructure with nobody having actually looked at it.
+Even carefully reviewed code is sometimes wrong, and "usually right"
+isn't a real safety guarantee for something that can delete a database.
+
+## What this actually looks like
+
+Whatever produced the resource definitions, the exact same confirmation
+is required before anything ships:
+
+```bash
+ubx ship 45f63ce10849...
+```
+
+```bash
+Ship payments · +1 create(s)
+Only 'yes' accepted: yes
+```
+
+The `ship` command has no idea, and doesn't care, what produced the
+draft it's about to apply. The ceremony is identical either way.
+
+## Why it matters
+
+Describing what you want, turned into a well-formed first draft, is a
+separate job from deciding to make something real. The second one still
+belongs entirely to a person, every single time, with every assumption
+laid out plainly first.
+
+Markdown and chat used to also produce drafts here, via an LLM instead
+of your own code, and this same boundary held for them too -- an LLM
+could draft, but never apply. Both are gone now (see
+[Authoring a Stack](/concepts/mediums) for why); the boundary itself
+didn't change, only what's on the drafting side of it.

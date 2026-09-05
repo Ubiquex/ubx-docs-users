@@ -1,0 +1,58 @@
+---
+title: "Drift, Adoption & Revert"
+description: "The honest response when reality and the ledger disagree."
+---
+
+The ledger only knows what it was explicitly told. If someone changes a
+real resource by hand, outside ubx entirely, the ledger has no idea
+until something goes looking for the difference. That gap, between what
+the ledger believes and what's actually true right now, is called
+drift.
+
+## How it works
+
+`ubx status` and `ubx scan` read a resource's real, live state and
+compare it, attribute by attribute, against what the ledger last
+recorded for it. Any mismatch is drift, and it's never silently ignored.
+
+```bash
+ubx scan --propose both
+```
+
+```bash
+! payments.aws_sqs_queue.pipeline-events drifted
+  message_retention_seconds: 86400 -> 1209600
+  next: ubx ship <adopt-hash>   (accept the new value)
+       ubx ship <revert-hash>  (restore the signed value)
+```
+
+Once drift is found, there are exactly two honest responses, drafted
+side by side:
+
+- **Adopt**: accept the real value as the new truth. This only updates
+  the ledger's own memory, nothing on the actual infrastructure changes.
+- **Revert**: undo the drift, restoring the infrastructure to match what
+  was originally signed off on.
+
+## Why silently "fixing" drift automatically doesn't work
+
+A tool that automatically reverted anything unexpected, without asking,
+would fight real, intentional changes that just happened to be made
+outside it, an emergency fix at 2am, say. A tool that automatically
+adopted everything would let unreviewed changes quietly become the new
+accepted baseline with nobody ever actually deciding that was okay.
+Neither guess is safe to make on your behalf.
+
+## What this actually looks like
+
+Where a real audit backend like CloudTrail is available, `ubx why`
+names who actually made the change, not just that something changed.
+See [Attribution](/concepts/attribution) for the full mechanism and a
+real, worked example.
+
+## Why it matters
+
+Drift is the honest name for "reality and the ledger disagree." Naming
+it plainly, and requiring an explicit human decision either way, means
+nothing about your real infrastructure's history is ever quietly
+assumed or guessed at.

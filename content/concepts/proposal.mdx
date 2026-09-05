@@ -1,0 +1,79 @@
+---
+title: "The Proposal"
+description: "The signed, hashed unit of change ubx records."
+---
+
+Every entry in [the ledger](/concepts/ledger) needs a real, fixed shape,
+otherwise "reading back history" would mean parsing whatever loose
+structure each tool, or each person, happened to write. A proposal is
+that fixed shape: one JSON document, the same fields every time,
+representing exactly one real decision.
+
+## How it works
+
+A proposal answers a handful of specific questions, always in the same
+place: what changed (`delta`), why (`intent`), what it was checked
+against (`resolution`), how expensive it is (`cost_delta` and
+`blast_radius`), and, once someone approves it, who signed off and how
+(`acceptance`).
+
+A proposal's own identity, its `id`, isn't a number you or ubx picks. It's
+the SHA-256 hash of the proposal's own content. That has a real,
+practical consequence: two people who independently write the exact same
+change end up with the exact same ID, because the ID is entirely
+determined by what's actually in the file.
+
+```json
+{
+  "id": "45f63ce10849...",
+  "kind": "change",
+  "parent": "8224643bbbc5...",
+  "delta": { "creates": [ "..." ] },
+  "blast_radius": { "creates": 1, "modifies": 0, "destroys": 0 },
+  "status": "accepted"
+}
+```
+
+`parent` points at the hash of the proposal right before this one. That
+single field is what turns a folder full of separate files into one
+real, ordered chain (more on why that matters in
+[Hash-Chain Verification](/concepts/verification)).
+
+## Why a loosely-shaped record doesn't work
+
+Imagine instead that each change was just recorded as free-form notes,
+"bumped the queue's retention to 14 days, seemed fine." That's readable
+to a human right after the change, but it can't be checked by a machine,
+can't be hashed reliably (the same change described two different ways
+would produce two different hashes), and has no fixed place to record
+things like cost or blast radius consistently.
+
+A proposal's fixed shape means every tool, every command, every future
+version of ubx, can read any proposal ever written and know exactly
+where to find what it needs.
+
+## What this actually looks like
+
+Accepting a hand-written or resolved proposal is a real command, not
+just a description:
+
+```bash
+ubx accept proposal.json --ledger-dir .
+```
+
+```bash
+accepted 45f63ce10849... (stack payments)
+```
+
+That single line means the proposal's hash was computed, its
+`acceptance` field was filled in with a real signature, and it was
+appended to the ledger, permanently.
+
+## Why it matters
+
+Because the shape is fixed and the ID is computed, not chosen, you can
+independently verify a proposal's own integrity without trusting
+whoever wrote it. Two proposals with the same content always produce
+the same hash, and any proposal whose content changes even slightly
+produces a completely different one. Nothing about "what actually
+happened" depends on anyone's word alone.

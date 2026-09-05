@@ -1,0 +1,55 @@
+---
+title: "Attribution"
+description: "Who caused a drift, and when, not just that it happened."
+---
+
+Knowing that a resource drifted is useful. Knowing *who* changed it, and
+when, is what actually lets a team have a real conversation about
+whether it was intentional. Without that, every drift turns into a
+guessing game.
+
+## How it works
+
+Where a real audit backend is available, CloudTrail on AWS, Cloud Audit
+Logs on GCP, Kubernetes audit logs on a cluster, ubx correlates a drift
+against the real events those systems recorded, and names the actual
+actor:
+
+```bash
+ubx why payments.aws_sqs_queue.pipeline-events
+```
+
+```bash
+source: cloudtrail
+  actor: arn:aws:iam::123456789012:role/platform-admin
+  event: PutQueueAttributes, at 2026-08-04T18:02:11Z
+```
+
+## Why guessing at who made a change doesn't work
+
+Without real correlation against an actual audit log, "who did this"
+would have to be inferred, from a timestamp, a hunch, someone's
+memory of who was working that day. That's not evidence, it's a guess
+dressed up as an answer, and it's exactly the kind of thing that erodes
+trust in an audit trail the moment it turns out to be wrong.
+
+## What this actually looks like
+
+Attribution can genuinely fail, an account isn't logging, delivery
+hasn't caught up yet, or no matching event exists at all. When it does,
+that failure is recorded as its own honest, specific reason, never
+silently dropped:
+
+```bash
+source: cloudtrail_unattributed
+  reason: no_matching_event
+```
+
+And if more than one real event could plausibly explain a drift, all of
+them are recorded, ubx never quietly picks one on your behalf.
+
+## Why it matters
+
+Attribution turns "something changed" into "this specific person, at
+this specific time, made this specific change," wherever the real
+evidence supports that claim, and says so honestly whenever it doesn't.
