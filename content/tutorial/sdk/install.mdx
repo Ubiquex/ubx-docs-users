@@ -1,0 +1,148 @@
+---
+title: "Installation & Setup"
+description: "Real install commands, real versions, per language."
+order: 1
+---
+
+Every SDK language needs exactly two real, published packages: the
+shared **runtime** (`stack`/`resource`/`intent`/`secret`, the
+serializer that maps your program's config back to a provider's real
+wire attribute names) and a provider's own **bindings** (the typed
+resource classes themselves, e.g. `sqs.Queue`, generated directly from
+a real provider schema). Neither works alone: the runtime has no idea
+what an SQS queue looks like, and bindings have no `resource()`/
+`stack()` to call. Every SDK reference page's own example imports both,
+for exactly this reason.
+
+Versions below were fetched directly from each real registry on
+2026-09-05, not from memory. Registries move; check the registry itself
+before treating a version here as current.
+
+## Go
+
+**Requirements**: Go 1.26.3 or newer, confirmed from `ubx-sdk-go`'s own
+published `go.mod` `go` directive.
+
+**Install** (the bindings module declares the runtime as its own real
+dependency, so one `go get` pulls both):
+
+```bash
+go mod init payments
+go get github.com/ubiquex/ubx-sdk-aws/sdk/go
+```
+
+Versions this resolves, confirmed against the Go module proxy: runtime
+`github.com/ubiquex/ubx-sdk-go` v0.3.0, bindings
+`github.com/ubiquex/ubx-sdk-aws/sdk/go` v1.0.0. The bindings live in a
+subdirectory module of their repo, tagged `sdk/go/v1.0.0`, which is why
+the module path carries the `/sdk/go` suffix.
+
+**Hello world**:
+
+```go
+package main
+
+import (
+	ubx "github.com/ubiquex/ubx-sdk-go/runtime"
+	sqs "github.com/ubiquex/ubx-sdk-aws/sdk/go/aws/sqs"
+)
+
+func main() {
+	ubx.Main(ubx.Stack("payments", func() {
+		ubx.Intent(ubx.IntentInfo{Summary: "hello, ubx"})
+		ubx.Resource(sqs.Queue, "example", sqs.QueueConfig{
+			Name: "example",
+		})
+	}))
+}
+```
+
+## TypeScript
+
+**Requirements**: Node.js 22.x or newer, the version every published
+repo's own CI builds and publishes against.
+
+**Install** (the bindings package declares the runtime as its own real
+dependency, so one `npm install` pulls both):
+
+```bash
+npm install @ubx/sdk-aws
+```
+
+Versions this resolves, confirmed against the npm registry: runtime
+`@ubx/sdk` 1.0.2, bindings `@ubx/sdk-aws` 2.2.1.
+
+TypeScript publishes to npm rather than JSR. npm has no protocol
+specifier that resolves inline the way `jsr:` does under Deno, so
+installing first is required, not optional, before the bare import
+below resolves.
+
+**Hello world**:
+
+```typescript
+import { stack, intent, resource } from "@ubx/sdk";
+import { Queue } from "@ubx/sdk-aws/aws/sqs/queue";
+
+export default stack("payments", () => {
+  intent({ summary: "hello, ubx" });
+  resource(Queue, "example", {
+    name: "example",
+  });
+});
+```
+
+## Python
+
+**Requirements**: Python 3.9 or newer, confirmed from `ubx-sdk`'s own
+`requires_python` metadata on PyPI.
+
+**Install** (the bindings package declares the runtime as its own real
+dependency, so one `pip install` pulls both):
+
+```bash
+pip install ubx-sdk-aws
+```
+
+Versions this resolves, confirmed against PyPI: runtime `ubx-sdk`
+(imported as `ubx_sdk`) 0.2.1, bindings `ubx-sdk-aws` 2.2.1.
+
+**Hello world**:
+
+```python
+import ubx_sdk as ubx
+from ubx.aws.sqs import Queue, QueueConfig
+
+def describe():
+    ubx.intent("hello, ubx")
+    ubx.resource(Queue, "example", QueueConfig(
+        name="example",
+    ))
+
+if __name__ == "__main__":
+    ubx.run("payments", describe)
+```
+
+## Next
+
+<Card title="Write your first program" icon="hammer" href="/tutorial/sdk/first-program">
+  The full walkthrough: resolve this same program and ship a real resource.
+</Card>
+
+Per-resource reference for every provider lives on the
+[provider documentation site](https://providers.ubiquex.io), which
+carries its own search and is versioned per SDK release.
+
+<CardGroup cols={2}>
+  <Card title="AWS" icon="cube" href="https://providers.ubiquex.io/aws">
+    Every AWS resource and data source, typed bindings in every language.
+  </Card>
+  <Card title="Google Cloud" icon="cube" href="https://providers.ubiquex.io/google">
+    Every Google Cloud resource and data source, typed bindings in every language.
+  </Card>
+  <Card title="Azure" icon="cube" href="https://providers.ubiquex.io/azure">
+    Every Azure resource and data source, typed bindings in every language.
+  </Card>
+  <Card title="Kubernetes" icon="cube" href="https://providers.ubiquex.io/kubernetes">
+    Every Kubernetes resource and data source, typed bindings in every language.
+  </Card>
+</CardGroup>

@@ -25,6 +25,11 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+      - name: No dead internal links
+        # A wrong href renders as an ordinary link and fails only
+        # when clicked. Two shipped to main, one of them in the
+        # header and so dead on 144 of 147 pages.
+        run: npm run check:links
       - name: Confirm the export actually produced pages
         run: |
           set -euo pipefail
