@@ -10,7 +10,12 @@ import type { NavLink, SectionTab } from "@ubx/docs-ui";
 // is current there.
 export const NAV: NavLink[] = [
   { label: "Home", href: "https://ubiquex.github.io/ubiquex-web/" },
-  { label: "Install", href: "/guides/install" },
+  // "/install", not "/guides/install". There is no Guides section on
+  // this site, and never was: the ticket's original section list named
+  // one, that list was corrected against Mintlify's real docs.json, and
+  // this href was left pointing at the fiction. It sits in the header,
+  // so it was dead on 144 of 147 pages.
+  { label: "Install", href: "/install" },
   { label: "Docs", href: "/", current: true },
   { label: "Providers", href: "https://providers.ubiquex.io" },
   { label: "Blog", href: "https://ubiquex.github.io/ubiquex-web/blog" },
