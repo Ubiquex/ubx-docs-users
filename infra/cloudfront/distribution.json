@@ -1,6 +1,6 @@
 {
   "CallerReference": "ubx-docs-users-2026-09-05",
-  "Comment": "ubx-docs-users static site (UBI-247). Alias docs.ubiquex.io attached once the ACM certificate validates and DNS is cut over from Mintlify.",
+  "Comment": "ubx-docs-users static site (UBI-247). docs.ubiquex.io alias attached after ACM validation and DNS cutover.",
   "Enabled": true,
   "DefaultRootObject": "index.html",
   "Origins": {
@@ -10,7 +10,9 @@
         "Id": "s3-ubx-docs-users-site",
         "DomainName": "ubx-docs-users-site.s3.us-east-1.amazonaws.com",
         "OriginAccessControlId": "E3VO6LIHTNN70Q",
-        "S3OriginConfig": { "OriginAccessIdentity": "" }
+        "S3OriginConfig": {
+          "OriginAccessIdentity": ""
+        }
       }
     ]
   },

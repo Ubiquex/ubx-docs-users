@@ -25,6 +25,12 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+      - name: Distribution config is within CloudFront's limits
+        # The committed Comment shipped at 138 chars against a 128
+        # limit, which CloudFront only reports after a real API
+        # round trip. 138 chars of prose looks exactly like 128 in
+        # review.
+        run: node infra/check-distribution-config.mjs
       - name: CloudFront rewrite function tests
         # Plain node, no AWS. Reads infra/cloudfront/rewrite.js
         # itself, so what is tested is the exact bytes that get

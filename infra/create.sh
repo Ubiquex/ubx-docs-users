@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 #
-# Creates the three resources that could not be created from the agent
-# session: the CloudFront distribution, the IAM deploy role, and the ACM
+# Creates the CloudFront distribution, the IAM deploy role and the ACM
 # certificate. Run it once, from the repo root, with credentials for
 # account 839333509514.
 #
@@ -25,6 +24,22 @@
 # It deliberately does NOT touch DNS. docs.ubiquex.io is live on
 # Mintlify, and repointing it is the last step, after the new site has
 # been confirmed serving on its own CloudFront domain.
+#
+# THE FIRST VERSION OF THIS SCRIPT HAD A REAL BUG, and the guards below
+# exist because of it rather than on principle. create-distribution
+# failed ("The parameter Comment is too big"), and the script carried on
+# and applied both the bucket policy and the role policy naming an empty
+# distribution ID. Neither granted anything, since a condition on
+# ".../distribution/" matches nothing, but both were silently wrong and
+# would have failed at deploy time with no obvious cause.
+#
+# It happened because the create ran inside `read -r A B <<<"$(cmd)"`.
+# `set -e` does not fire there: the command that "runs" is `read`, which
+# succeeds on empty input, so a failed create becomes two empty variables
+# and execution continues. Command substitution nested inside another
+# command is a blind spot for `set -e`, so every fallible call below runs
+# as its own statement with its status checked explicitly, and the
+# distribution ID is validated before anything may reference it.
 
 set -euo pipefail
 
@@ -42,20 +57,56 @@ if [ "$have_account" != "$ACCOUNT" ]; then
   exit 1
 fi
 
+echo "== 0. Preflight on the committed distribution config =="
+# CloudFront caps Comment at 128 characters and rejects the entire call
+# if it is longer. That is what broke the first run, and the error only
+# arrives after a round trip, so it is checked here against the committed
+# file before anything is created.
+comment_len="$(python3 -c "import json;print(len(json.load(open('infra/cloudfront/distribution.json'))['Comment']))")"
+if [ "$comment_len" -gt 128 ]; then
+  echo "distribution.json Comment is $comment_len chars, CloudFront's limit is 128" >&2
+  exit 1
+fi
+echo "   Comment is $comment_len chars, within the 128 limit"
+
 echo "== 1. CloudFront distribution =="
 DIST_ID="$(aws cloudfront list-distributions \
   --query "DistributionList.Items[?starts_with(Comment, 'ubx-docs-users')].Id | [0]" \
   --output text 2>/dev/null || echo None)"
 
 if [ "$DIST_ID" = "None" ] || [ -z "$DIST_ID" ]; then
-  read -r DIST_ID DIST_DOMAIN <<<"$(aws cloudfront create-distribution \
-    --distribution-config file://infra/cloudfront/distribution.json \
-    --query 'Distribution.[Id,DomainName]' --output text)"
+  # Its own statement, status checked. See the note at the top for why
+  # this must not be wrapped in a command substitution.
+  if ! created="$(aws cloudfront create-distribution \
+      --distribution-config file://infra/cloudfront/distribution.json \
+      --query 'Distribution.[Id,DomainName]' --output text)"; then
+    echo "create-distribution failed, stopping before anything references it" >&2
+    exit 1
+  fi
+  read -r DIST_ID DIST_DOMAIN <<<"$created"
   echo "   created $DIST_ID ($DIST_DOMAIN)"
 else
-  DIST_DOMAIN="$(aws cloudfront get-distribution --id "$DIST_ID" \
-    --query 'Distribution.DomainName' --output text)"
+  if ! DIST_DOMAIN="$(aws cloudfront get-distribution --id "$DIST_ID" \
+      --query 'Distribution.DomainName' --output text)"; then
+    echo "could not read the existing distribution $DIST_ID" >&2
+    exit 1
+  fi
   echo "   already exists: $DIST_ID ($DIST_DOMAIN)"
+fi
+
+# The gate. Everything past this point writes a policy naming this ID, so
+# an empty or malformed one must stop the script rather than propagate.
+# CloudFront distribution IDs are uppercase alphanumeric beginning with E.
+case "$DIST_ID" in
+  E[A-Z0-9]*) ;;
+  *)
+    echo "refusing to continue: '$DIST_ID' is not a CloudFront distribution id" >&2
+    exit 1
+    ;;
+esac
+if [ -z "$DIST_DOMAIN" ]; then
+  echo "refusing to continue: distribution domain is empty" >&2
+  exit 1
 fi
 
 echo "== 2. Bucket policy, granting read to that distribution alone =="
@@ -80,7 +131,7 @@ cat > /tmp/ubx-docs-users-bucket-policy.json <<JSON
 JSON
 aws s3api put-bucket-policy --bucket "$BUCKET" \
   --policy file:///tmp/ubx-docs-users-bucket-policy.json
-echo "   applied"
+echo "   applied, scoped to $DIST_ID"
 
 echo "== 3. IAM deploy role =="
 if aws iam get-role --role-name "$ROLE" >/dev/null 2>&1; then
@@ -97,8 +148,10 @@ fi
 # so the repo never holds a half-real policy.
 sed "s/REPLACE_ME_DISTRIBUTION_ID/$DIST_ID/" infra/iam/deploy-policy.json \
   > /tmp/ubx-docs-users-deploy-policy.json
-grep -q REPLACE_ME /tmp/ubx-docs-users-deploy-policy.json && {
-  echo "placeholder substitution failed" >&2; exit 1; }
+if grep -q REPLACE_ME /tmp/ubx-docs-users-deploy-policy.json; then
+  echo "placeholder substitution failed" >&2
+  exit 1
+fi
 aws iam put-role-policy --role-name "$ROLE" \
   --policy-name "$ROLE" \
   --policy-document file:///tmp/ubx-docs-users-deploy-policy.json
@@ -110,9 +163,12 @@ CERT_ARN="$(aws acm list-certificates --region "$REGION" \
   --output text 2>/dev/null || echo None)"
 
 if [ "$CERT_ARN" = "None" ] || [ -z "$CERT_ARN" ]; then
-  CERT_ARN="$(aws acm request-certificate --region "$REGION" \
-    --domain-name "$DOMAIN" --validation-method DNS \
-    --query CertificateArn --output text)"
+  if ! CERT_ARN="$(aws acm request-certificate --region "$REGION" \
+      --domain-name "$DOMAIN" --validation-method DNS \
+      --query CertificateArn --output text)"; then
+    echo "request-certificate failed" >&2
+    exit 1
+  fi
   echo "   requested $CERT_ARN"
   # ACM populates the validation record asynchronously.
   for _ in $(seq 1 12); do
