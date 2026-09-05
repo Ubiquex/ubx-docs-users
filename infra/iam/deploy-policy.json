@@ -1,0 +1,35 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListTheSiteBucketOnly",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket", "s3:GetBucketLocation"],
+      "Resource": "arn:aws:s3:::ubx-docs-users-site"
+    },
+    {
+      "Sid": "WriteSiteObjects",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::ubx-docs-users-site/*"
+    },
+    {
+      "Sid": "InvalidateAndReadThisDistributionOnly",
+      "Effect": "Allow",
+      "Action": ["cloudfront:CreateInvalidation", "cloudfront:GetDistribution"],
+      "Resource": "arn:aws:cloudfront::839333509514:distribution/REPLACE_ME_DISTRIBUTION_ID"
+    },
+    {
+      "Sid": "PublishTheRewriteFunction",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:DescribeFunction",
+        "cloudfront:GetFunction",
+        "cloudfront:UpdateFunction",
+        "cloudfront:PublishFunction",
+        "cloudfront:TestFunction"
+      ],
+      "Resource": "arn:aws:cloudfront::839333509514:function/ubx-docs-users-rewrite"
+    }
+  ]
+}
