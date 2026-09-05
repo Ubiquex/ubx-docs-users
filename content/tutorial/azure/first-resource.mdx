@@ -3,14 +3,14 @@ title: "Your first Azure resources"
 description: "A real storage account and a real queue, wired together with a reference."
 ---
 
-Same commands, `hashicorp/azurerm` instead of `hashicorp/aws`. Two real
+Same commands, `ubiquex/azure` instead of `ubiquex/aws`. Two real
 resources, one referencing the other, shown in all three languages.
 
 ## Set up a stack
 
 ```bash
 mkdir payments-azure && cd payments-azure
-ubx init --source hashicorp/azurerm --provider-version 3.116.0
+ubx init --dynamic-source ubiquex/azure --provider-version 2.0.0
 ```
 
 ## Author both resources

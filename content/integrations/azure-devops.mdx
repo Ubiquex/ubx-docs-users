@@ -212,7 +212,7 @@ steps:
       scriptType: 'inline'
       inlineScript: |
         ubx status --drift --stack payments \
-          --source hashicorp/aws --provider-version 6.54.0 \
+          --dynamic-source ubiquex/aws --provider-version 1.0.0 \
           --provider-config '{"region":"us-east-1"}'
     displayName: Check for drift
 ```
@@ -317,7 +317,7 @@ steps:
   - bash: |
       set +e
       ubx plan --ledger-dir . \
-        --source hashicorp/aws --provider-version 6.54.0 \
+        --dynamic-source ubiquex/aws --provider-version 1.0.0 \
         > plan-output.txt 2>&1
       echo "##vso[task.setvariable variable=planExitCode]$?"
     displayName: Render the plan
@@ -444,7 +444,7 @@ steps:
       scriptType: 'inline'
       inlineScript: |
         ubx ship --yes \
-          --source hashicorp/aws --provider-version 6.54.0 \
+          --dynamic-source ubiquex/aws --provider-version 1.0.0 \
           --provider-config '{"region":"us-east-1"}'
     displayName: Ship
 ```

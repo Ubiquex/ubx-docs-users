@@ -52,7 +52,7 @@ mkdir payments && cd payments
 `ubx init` writes the config file every other command reads.
 
 ```bash
-ubx init --source hashicorp/aws --provider-version 6.54.0
+ubx init --dynamic-source ubiquex/aws --provider-version 1.0.0
 ```
 
 You'll see:
@@ -72,8 +72,11 @@ cat .ubx/config.hcl
 ```bash
 stack = "payments"
 
-thirdparty_providers = {
-  "hashicorp/aws" = "6.54.0"
+providers = {
+  "aws" = {
+    source  = "ubiquex/aws"
+    version = "1.0.0"
+  }
 }
 ```
 

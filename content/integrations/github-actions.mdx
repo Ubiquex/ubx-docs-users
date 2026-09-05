@@ -62,7 +62,7 @@ a real, avoidable source of drift in the automation itself.
 
 ### Provider credentials: OIDC to AWS, no stored keys
 
-Drift-watch and ship-on-merge both launch the real `hashicorp/aws`
+Drift-watch and ship-on-merge both launch the real `ubiquex/aws`
 provider binary against live infrastructure, and it reads credentials
 the same way any AWS SDK-based tool does -- from the process
 environment, nothing ubx-specific. Plan-on-push, covered below, is a
@@ -117,7 +117,7 @@ roles.
 
 `ubx` verifies and caches every provider binary it downloads at
 `~/.ubx/providers`. Without a cache, each run re-downloads and
-re-verifies the same `hashicorp/aws` binary from scratch -- a real,
+re-verifies the same `ubiquex/aws` binary from scratch -- a real,
 avoidable cold start on every scheduled run. `actions/cache`, keyed on
 the exact provider source and version, fixes this:
 
@@ -185,7 +185,7 @@ jobs:
       - name: Check for drift
         run: |
           ubx status --drift --stack payments \
-            --source hashicorp/aws --provider-version 6.54.0 \
+            --dynamic-source ubiquex/aws --provider-version 1.0.0 \
             --provider-config '{"region":"us-east-1"}'
 ```
 
@@ -245,7 +245,7 @@ jobs:
       - name: Render the plan
         run: |
           ubx plan --ledger-dir . \
-            --source hashicorp/aws --provider-version 6.54.0 \
+            --dynamic-source ubiquex/aws --provider-version 1.0.0 \
             > plan-output.txt 2>&1
 
       - name: Post the plan as a PR comment
@@ -348,7 +348,7 @@ jobs:
       - name: Ship
         run: |
           ubx ship --yes \
-            --source hashicorp/aws --provider-version 6.54.0 \
+            --dynamic-source ubiquex/aws --provider-version 1.0.0 \
             --provider-config '{"region":"us-east-1"}'
 ```
 
