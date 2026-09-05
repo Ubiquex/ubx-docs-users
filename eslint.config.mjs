@@ -12,6 +12,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+
+    // Not application code. rewrite.js runs in the CloudFront Functions
+    // runtime (cloudfront-js-2.0), which is ES5-shaped and invokes a bare
+    // global `handler` with no export, so the app's rules flag it as an
+    // unused variable. It has its own real test suite, which loads and
+    // evaluates the file itself, and function-publish.yml re-runs those
+    // tests before anything reaches LIVE.
+    "infra/cloudfront/rewrite.js",
   ]),
 ]);
 
