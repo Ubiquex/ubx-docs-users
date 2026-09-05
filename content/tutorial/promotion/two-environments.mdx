@@ -17,12 +17,12 @@ mkdir -p envs/dev/payments envs/prod/payments
 
 ```bash
 cd envs/dev/payments
-ubx init --source hashicorp/aws --provider-version 6.54.0
+ubx init --dynamic-source ubiquex/aws --provider-version 1.0.0
 ```
 
 ```bash
 cd ../../prod/payments
-ubx init --source hashicorp/aws --provider-version 6.54.0
+ubx init --dynamic-source ubiquex/aws --provider-version 1.0.0
 ```
 
 Two real, separate `.ubx/config.hcl` files, two real, separate ledgers.

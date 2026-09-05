@@ -3,14 +3,14 @@ title: "Your first cluster resources"
 description: "A real secret and a real deployment, wired together with a reference."
 ---
 
-Same commands, `hashicorp/kubernetes` as the provider. Two real
+Same commands, `ubiquex/kubernetes` as the provider. Two real
 resources, one referencing the other, shown in all three languages.
 
 ## Set up a stack
 
 ```bash
 mkdir payments-k8s && cd payments-k8s
-ubx init --source hashicorp/kubernetes --provider-version 2.31.0
+ubx init --dynamic-source ubiquex/kubernetes --provider-version 3.0.1
 ```
 
 ## Author both resources

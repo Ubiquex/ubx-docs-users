@@ -183,13 +183,13 @@ PR body before merging.
 ## Confirmed: the verification step catches a real incompatibility, not just a blind bump
 
 This isn't a theoretical safety net. A real, deliberately constructed
-case: `hashicorp/aws@6.50.0` has no `aws_cloudwatch_log_storage_tier_policy`
+case: `ubiquex/aws@1.0.0` has no `aws_cloudwatch_log_storage_tier_policy`
 resource type at all -- it was added in a later release. A stack that
 declares one:
 
 ```text
 $ ubx resolve intent.json --ledger-dir .
-resolve: resolve: provider schema has no such type: "aws_cloudwatch_log_storage_tier_policy" -- checked: hashicorp/aws
+resolve: resolve: provider schema has no such type: "aws_cloudwatch_log_storage_tier_policy" -- checked: ubiquex/aws
 ```
 
 fails cleanly against the old pin. After `ubx providers check --write`
