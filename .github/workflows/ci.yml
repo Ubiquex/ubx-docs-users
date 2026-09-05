@@ -25,6 +25,11 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+      - name: CloudFront rewrite function tests
+        # Plain node, no AWS. Reads infra/cloudfront/rewrite.js
+        # itself, so what is tested is the exact bytes that get
+        # uploaded rather than a re-typed copy that could drift.
+        run: node --test infra/cloudfront/rewrite.test.mjs
       - name: No dead internal links
         # A wrong href renders as an ordinary link and fails only
         # when clicked. Two shipped to main, one of them in the

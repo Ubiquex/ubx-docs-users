@@ -1,0 +1,158 @@
+name: deploy
+
+# Deploys the static export to S3 behind CloudFront, following the
+# ubx-docs-providers pattern. Credentials come from GitHub's own OIDC
+# provider, never long-lived keys.
+#
+# WHY INVALIDATION IS WILDCARD HERE, WHICH IS THE OPPOSITE OF THE
+# PROVIDER SITE. That workflow goes to real lengths to avoid `/*`, and
+# copying its reasoning across without re-deriving it would be wrong.
+#
+# Its content is version-scoped and immutable by construction: publishing
+# github 1.2.3 writes entirely new object keys, which were never cached
+# anywhere and so need no invalidation at all. Only a small, enumerable
+# mutable surface needs it, against ~68k objects that do not. A `/*`
+# there would evict all of them to refresh a couple of dozen.
+#
+# None of that holds here. This site is 147 hand-written pages with no
+# versioning mechanism, and any page can change on any deploy. There is
+# no immutable majority to protect, and the "targeted" list would be a
+# near-complete enumeration of the site. CloudFront also bills per path
+# submitted, wildcards included, so `/*` is one billable path where the
+# enumeration would be 147. The wildcard is both simpler and cheaper.
+#
+# The hashed assets under /_next/static are still excluded, because they
+# carry a content hash in the filename and genuinely never change in
+# place.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  BUCKET: ubx-docs-users-site
+  # Filled in once the distribution exists. The guard below refuses to
+  # run while these are placeholders rather than deploying into nothing.
+  DISTRIBUTION_ID: REPLACE_ME_DISTRIBUTION_ID
+  DEPLOY_ROLE: REPLACE_ME_ROLE_ARN
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse to run against placeholder infrastructure
+        # Without this, the first push to main after merge would fail deep
+        # inside the AWS CLI with an unhelpful error, or worse, succeed
+        # against something unintended. Fail early and say exactly what is
+        # missing.
+        run: |
+          set -euo pipefail
+          missing=0
+          case "$DISTRIBUTION_ID" in REPLACE_ME*) echo "DISTRIBUTION_ID is still a placeholder"; missing=1;; esac
+          case "$DEPLOY_ROLE" in REPLACE_ME*) echo "DEPLOY_ROLE is still a placeholder"; missing=1;; esac
+          if [ "$missing" -eq 1 ]; then
+            echo ""
+            echo "The CloudFront distribution and IAM deploy role are not created yet."
+            echo "See infra/README.md for the exact commands, then fill these in."
+            exit 1
+          fi
+
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the static export
+        run: npm run build
+
+      - name: Confirm the export actually produced pages
+        # A build that silently produced an empty or near-empty out/ would
+        # otherwise be synced with --delete and take the live site down.
+        run: |
+          set -euo pipefail
+          test -f out/index.html || { echo "out/index.html missing, refusing to sync"; exit 1; }
+          count="$(find out -name '*.html' | wc -l | tr -d ' ')"
+          echo "exported HTML pages: $count"
+          if [ "$count" -lt 100 ]; then
+            echo "only $count HTML pages exported, expected ~147, refusing to sync a likely-broken build"
+            exit 1
+          fi
+
+      - name: No dead internal links
+        # The same check ci.yml runs. Repeated here because this is the
+        # job that makes pages public, and a deploy that ships a link to a
+        # page that does not exist is worth stopping even if something
+        # reached main without CI.
+        run: npm run check:links
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sync immutable hashed assets
+        # Everything under /_next/static carries a content hash in its own
+        # filename, so it is safe to cache forever. Done first, so a page
+        # referencing a new asset can never be served before that asset
+        # exists.
+        run: |
+          set -euo pipefail
+          aws s3 sync out/ "s3://$BUCKET/" \
+            --exclude '*' --include '_next/static/*' \
+            --cache-control 'public,max-age=31536000,immutable' \
+            --only-show-errors
+
+      - name: Sync everything else
+        # Short TTL: page HTML, the per-route RSC navigation payloads
+        # (.txt) and the search index are all mutable. --delete runs here,
+        # after the guard above.
+        run: |
+          set -euo pipefail
+          aws s3 sync out/ "s3://$BUCKET/" \
+            --exclude '_next/static/*' \
+            --cache-control 'public,max-age=60' \
+            --delete \
+            --only-show-errors
+
+      - name: Invalidate
+        # See the header comment for why this is a wildcard where the
+        # provider site's is targeted.
+        run: |
+          set -euo pipefail
+          aws cloudfront create-invalidation \
+            --distribution-id "$DISTRIBUTION_ID" --paths '/*' \
+            --query 'Invalidation.Id' --output text
+
+      - name: Confirm the site actually serves what was just deployed
+        # The workflow exiting 0 means the AWS calls succeeded, which is
+        # not the same as the site working. This fetches real pages
+        # through CloudFront and checks them.
+        run: |
+          set -euo pipefail
+          domain="$(aws cloudfront get-distribution --id "$DISTRIBUTION_ID" \
+            --query 'Distribution.DomainName' --output text)"
+          fail=0
+          for path in / /concepts /install /tutorial/sdk/install /search-index.json; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' "https://$domain$path")"
+            if [ "$code" = "200" ]; then echo "ok   $path -> $code"
+            else echo "FAIL $path -> $code"; fail=1; fi
+          done
+          [ "$fail" -eq 0 ] || { echo "deploy completed but the site does not serve"; exit 1; }
