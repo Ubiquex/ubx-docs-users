@@ -58,6 +58,35 @@ if (!viewerRequest) {
   problems.push("no viewer-request function association, so every extensionless route would 404");
 }
 
+// 5. Both 403 and 404 must map to the 404 page.
+//
+// This is not belt and braces. A private bucket behind Origin Access
+// Control answers a missing key with 403 AccessDenied, never 404,
+// because the CloudFront principal holds s3:GetObject but not
+// s3:ListBucket and S3 will not disclose whether the key exists. The
+// first deployed config mapped only 404, so every nonexistent URL on the
+// site returned a raw S3 XML error document instead of the 404 page.
+// Nothing about that is visible in the config: mapping 404 looks like
+// exactly the right thing to do.
+const errorCodes = new Set(
+  (config.CustomErrorResponses?.Items ?? []).map((i) => i.ErrorCode),
+);
+for (const code of [403, 404]) {
+  const entry = config.CustomErrorResponses?.Items?.find((i) => i.ErrorCode === code);
+  if (!entry) {
+    problems.push(
+      `no CustomErrorResponse for ${code}` +
+        (code === 403 ? ": S3 behind OAC returns 403 for a missing key, not 404" : ""),
+    );
+  } else if (entry.ResponsePagePath !== "/404.html" || entry.ResponseCode !== "404") {
+    problems.push(
+      `CustomErrorResponse ${code} should serve /404.html as 404, ` +
+        `got ${entry.ResponsePagePath} as ${entry.ResponseCode}`,
+    );
+  }
+}
+void errorCodes;
+
 // 5. Declared quantities must match the arrays they describe. CloudFront
 //    trusts Quantity, so a mismatch is accepted and then behaves as
 //    though the extra items were never configured.
