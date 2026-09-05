@@ -1,0 +1,78 @@
+---
+title: "Blueprint Outputs"
+description: "A blueprint's own stable, versioned return values."
+---
+
+Say a caller needs to reference something a blueprint creates
+internally, an IAM role's real ARN, for example, to write a policy
+elsewhere. If they just reach directly into the blueprint's internal
+resource name to grab it, a perfectly reasonable rename by the
+blueprint's own author later silently breaks every caller who did that.
+
+## How it works
+
+A blueprint author declares outputs explicitly, and the compiled
+function genuinely returns them, the same way any ordinary function
+returns a value:
+
+```
+# Ubxfile
+outputs:
+  repo_arn: container-repo.arn
+```
+
+```go
+repoArn := ciplatform.CiPlatform("payments-ci-artifacts", "payments-notifications")
+// repoArn is a real *ubx.Computed value
+```
+
+A caller uses the returned value directly. They never need to know, or
+depend on, the blueprint's own internal resource names.
+
+## Why reaching into internals doesn't work
+
+If a caller has to know a blueprint's private resource names to get a
+value out of it, the blueprint's author can never safely rename or
+restructure anything internal without breaking someone. That's the
+opposite of what a reusable pattern is supposed to give you.
+
+## What this actually looks like
+
+Outputs are deliberately different from
+[`@stack` cross-stack references](/concepts/environments), even though
+both involve "getting a value from somewhere else." A `@stack` reference
+crosses a real trust boundary, a different team's own, separately
+signed ledger, pinned to their chain's current head. An output never
+leaves the one proposal being resolved right now, no separate ledger, no
+staleness to worry about.
+
+```json
+{"$ref": {"to": "$blueprint_output:platform_call:repo_arn"}}
+```
+
+A hand-written intent/v1 file's own `blueprint_calls` entry names itself
+with `call_name` (here, `platform_call`); any resource's own config in
+the same document can reference that call's declared output by name,
+resolved into the real address once the call has actually run and its
+real resources are known. An SDK program never needs this marker at
+all: calling a blueprint's own function in-process already returns the
+real `Computed` value directly, the same way any other function call
+would.
+
+## Why it matters
+
+An author can freely restructure a blueprint's internals across
+versions, as long as the declared outputs stay stable. Callers get a
+real contract, not an implementation detail they'd have to track by
+hand.
+
+A blueprint that produces a variable number of resources through
+[list parameters and iteration](/concepts/blueprint-list-params) can't
+also declare `outputs:`, combining a per-iteration return list with
+named single-instance outputs isn't supported. Only the compiled
+function's own returned list exposes those instances to a caller.
+
+## See also
+
+- [Blueprints](/concepts/blueprints)
+- [List Parameters & Iteration](/concepts/blueprint-list-params)
