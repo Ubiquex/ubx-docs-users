@@ -1,0 +1,34 @@
+name: ci
+
+# Added in the same slice as the shared-UI extraction, deliberately.
+# ubx-docs-providers ran with no branch protection and eight consecutive
+# red runs reached its main unnoticed. This repo gets the gate before it
+# accumulates the same history.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - name: Confirm the export actually produced pages
+        run: |
+          set -euo pipefail
+          test -f out/index.html || { echo "out/index.html missing"; exit 1; }
+          n="$(find out -name '*.html' | wc -l | tr -d ' ')"
+          echo "exported HTML pages: $n"
+          [ "$n" -ge 40 ] || { echo "only $n pages exported, expected the Concepts set"; exit 1; }

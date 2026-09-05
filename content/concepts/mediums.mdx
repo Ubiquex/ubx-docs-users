@@ -1,0 +1,60 @@
+---
+title: "Authoring a Stack"
+description: "The SDK is the only way to author a stack, and why."
+---
+
+There is one way to describe a change to ubx: write real code, in Go,
+TypeScript, or Python. A `resource(...)` call is a deterministic
+function call. Running your program always produces the same resolved
+delta from the same input, no interpretation step in between.
+
+## How it works
+
+```bash
+ubx plan --from-code create_platform.go
+```
+
+```bash
+resolved: payments: 1 create(s), 0 change(s), 0 terminate(s)
+```
+
+Bare `ubx plan`, with no `--from-code` flag at all, auto-detects a lone
+SDK program in the current directory and plans it directly -- see the
+[`ubx plan` reference](/cli-reference/plan) for the exact detection
+rule.
+
+## Markdown, chat, and diagram used to exist
+
+Earlier versions of ubx also supported three other ways to author a
+stack: writing prose that an LLM drafted into a proposal, a live chat
+conversation with the same drafting behind it, and drawing topology in
+a D2 diagram that a structural parser read directly. All three are
+gone.
+
+Markdown and chat shared the same real problem: an LLM asked to draft
+the same document twice is not guaranteed to draft it the same way
+twice. That breaks the project's own first invariant -- what applies is
+exactly what was signed -- for any proposal built from a medium that
+might not produce the same signed content on a later run. The SDK has
+no interpretation step to be nondeterministic in.
+
+Diagram was never a complete medium in the first place: it could only
+ever express topology (which resources exist, how they depend on each
+other), never a resource's own configuration. A diagram-authored
+resource with any schema-required attribute had nothing that could set
+it. It stayed useful for one thing this whole time, and still is:
+[`ubx render`](/cli-reference/render) draws the current, real shape of
+a stack as a D2 diagram, generated FROM ledger state rather than
+authored INTO it. That direction never had the determinism problem
+authoring did, since it's a read of already-accepted proposals, not a
+new one being drafted, and it's unaffected by any of this.
+
+## Why it matters
+
+Every resolved delta looks the same to the rest of ubx after this
+point, regardless of what produced it: review, signing, and shipping
+work identically. What changed is only where "produced it" can mean
+now. See [The SDK](/concepts/sdk-depth) for what authoring in Go,
+TypeScript, or Python actually looks like, and
+[The Trust Boundary](/concepts/trust-boundary) for what stays
+deterministic and what a human still has to sign.

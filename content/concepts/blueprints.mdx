@@ -1,0 +1,104 @@
+---
+title: "Blueprints"
+description: "Build once, call many times, zero AI anywhere in the lifecycle."
+---
+
+If your team keeps building the same pattern, an ECR repository, an SQS
+queue, an IAM role and policy wired together correctly, someone ends up
+re-authoring that exact shape by hand every single time. Every repeat is
+a chance to get some small detail wrong differently than last time.
+
+## How it works
+
+A blueprint is a reusable pattern, authored once as a pre-resolved
+intent document, then compiled into real, deterministic code. Nothing
+in this pipeline calls an LLM: an author produces the resolved pattern
+themselves (writing an SDK program and running `ubx resolve --from-code`,
+or converting an existing Terraform module with `ubx blueprint convert`),
+and `ubx blueprint build` only ever parses what they produced.
+
+```bash
+ubx blueprint build . --lang all
+```
+
+That command parses the pre-resolved pattern once and compiles the
+result into real Go, TypeScript, and Python packages. From here
+forward, calling it is just calling a function:
+
+```go
+import ciplatform "ciplatform"
+
+ciplatform.CiPlatform("payments-ci-artifacts", "payments-notifications")
+```
+
+## Why hand-copying a pattern doesn't work
+
+Copy-pasting the "same" resource pattern into a new stack means every
+copy can quietly drift from the original, a forgotten attribute here, a
+slightly different default there. There's no way to know later which
+copies actually match, or to fix a real bug in the pattern everywhere at
+once.
+
+## What this actually looks like
+
+Every resource a blueprint produces carries a permanent record of which
+blueprint, and which exact version, created it:
+
+```bash
+ubx why payments.aws_iam_role.ci-runner
+```
+
+```bash
+payments.aws_iam_role.ci-runner: 1 proposal(s), newest first
+- change 45f63ce10849…: payments' own CI platform, via blueprint
+    accepted by [roozbeh] via local at 2026-08-05T14:02:11Z
+    + aws_iam_role.ci-runner create
+      source: blueprint ci-platform:sha256:a1b2c3...
+        (this resource's own creation is signed by the CALLING stack's own
+        acceptance below; the blueprint's own authorship has no separate
+        signing ceremony in this build yet)
+```
+
+**Stated honestly, not glossed over:** there's only one real signature
+here, the calling stack's own acceptance, shown above. There's no
+separate ceremony yet for a blueprint author to sign their own
+definition independent of any call, `ubx why` says so directly rather
+than implying a dual-signature guarantee that doesn't exist. What you
+get today is a permanent, accurate record of which blueprint produced a
+resource and who accepted the proposal that created it, not a second,
+independent signature from the blueprint's own author.
+
+There's also no discovery mechanism, no registry to search, no `ubx
+blueprint search`. A caller points at a ref they already know, a git
+URL, an OCI reference, a local path, the same way you'd already know a
+Docker image tag before pulling it. See
+[Distributing a Blueprint](/concepts/blueprint-distribution) for what
+"already know" actually means across all four real source types.
+
+## Why it matters
+
+The pattern gets designed correctly once. Every future use inherits that
+correctness automatically, and if the pattern itself needs a fix, it's
+fixed once, in one place, for everyone who calls it.
+
+Building it is only half the story. See
+[Distributing a Blueprint](/concepts/blueprint-distribution) for how a
+built blueprint actually gets from its author's machine to everyone
+else's, [List Parameters & Iteration](/concepts/blueprint-list-params)
+for a blueprint that produces N resources instead of one, and
+[Overriding a Blueprint's Internals](/concepts/blueprint-overrides) for
+patching a resolved attribute the blueprint itself doesn't expose as a
+parameter.
+
+A real stack is almost never only a blueprint call: a blueprint's own
+output feeds directly into a hand-written resource in the same stack,
+the exact same way any other resource's output would, but a
+hand-written resource's own value cannot feed back into a blueprint
+call, in either calling direction, at all. See
+[Mixing a blueprint call with hand-written resources](/tutorial/blueprints/mixing)
+for the real worked example.
+
+A stack that only ever calls blueprints, no hand-written resources at
+all, has a lighter-weight option than the SDK: see
+[Calling Blueprints with HCL](/concepts/hcl-blueprint-calling) for
+`.ubx.hcl`, a closed, deterministic grammar for exactly that case.
