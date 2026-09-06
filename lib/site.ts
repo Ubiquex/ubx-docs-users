@@ -1,4 +1,4 @@
-import type { NavLink, SectionTab } from "@ubx/docs-ui";
+import type { NavLink } from "@ubx/docs-ui";
 
 // Two-tier navigation, per UBI-247. The header carries DESTINATIONS
 // (other sites in this project), the tab strip carries SECTIONS within
@@ -10,49 +10,29 @@ import type { NavLink, SectionTab } from "@ubx/docs-ui";
 // is current there.
 export const NAV: NavLink[] = [
   { label: "Home", href: "https://ubiquex.github.io/ubiquex-web/" },
-  // "/install", not "/guides/install". There is no Guides section on
-  // this site, and never was: the ticket's original section list named
-  // one, that list was corrected against Mintlify's real docs.json, and
-  // this href was left pointing at the fiction. It sits in the header,
-  // so it was dead on 144 of 147 pages.
   { label: "Install", href: "/install" },
-  { label: "Docs", href: "/", current: true },
+  { label: "Documentation", href: "/", current: true },
+  { label: "Tutorials", href: "/tutorial" },
   { label: "Providers", href: "https://providers.ubiquex.io" },
   { label: "Blog", href: "https://ubiquex.github.io/ubiquex-web/blog" },
 ];
 
-// The five sections the ticket names. Only Concepts is built in this
-// slice; the rest are declared here so the shell is proven against the
-// real tab count rather than against one tab, but they are NOT linked
-// from the home page until their content exists (see SECTIONS below).
-// The real sections, corrected against Mintlify's own docs.json rather
-// than the ticket's original list (UBI-247). That list named a
-// Blueprints section which does not exist (it is a group inside
-// Tutorial, and the blueprint concept pages moved with Concepts) and a
-// Guides section which does not either, while omitting ubx server and
-// Install.
-export const TABS: SectionTab[] = [
-  { label: "Install", href: "/install" },
-  { label: "Concepts", href: "/concepts" },
-  { label: "Tutorial", href: "/tutorial" },
-  { label: "CLI reference", href: "/cli-reference" },
-  { label: "Integrations", href: "/integrations" },
-  { label: "Server", href: "/server" },
-];
+// NO TAB STRIP. The section tabs used to sit under the header on every
+// page. They are gone from all of them: from the home page, where they
+// duplicated the section cards, and now from content pages, where the
+// sidebar is the navigation once you are inside a section.
+//
+// Worth being explicit about what that costs, because it is a real
+// trade. From a page inside Concepts there is now no one-click route to
+// Tutorial. The header carries Install and Tutorials as destinations
+// (matching the provider site's menu), and everything else goes via the
+// home page. If cross-section movement from deep inside a section turns
+// out to matter, this is the decision to revisit.
 
 export type Section = {
   slug: string;
   label: string;
   description: string;
-  /**
-   * Simple inline glyph, matching the provider site's icon-free-ish
-   * restraint. Each one is tied to what its section is about rather than
-   * being decorative: ⤓ download, ◎ the core model, ▶ start and walk
-   * through, ❯ a shell prompt, ⇄ two systems exchanging, ▤ a rack. The
-   * first set was arbitrary geometry (▼ ◈ ◎ ▸ ▤ ▣) with no relation to
-   * the sections it labelled.
-   */
-  icon: string;
   /** False until the section's own content has actually been moved. */
   ready: boolean;
 };
@@ -66,7 +46,6 @@ export const SECTIONS: Section[] = [
     slug: "install",
     label: "Install",
     description: "Getting ubx onto your machine and into your first stack.",
-    icon: "⤓",
     ready: true,
   },
   {
@@ -74,7 +53,6 @@ export const SECTIONS: Section[] = [
     label: "Concepts",
     description:
       "How ubx models infrastructure: the proposal ledger, resolution, drift, and what each record actually guarantees.",
-    icon: "◎",
     ready: true,
   },
   {
@@ -82,7 +60,6 @@ export const SECTIONS: Section[] = [
     label: "Tutorial",
     description:
       "End-to-end walkthroughs against real providers, from a first resource to promotion across environments and blueprints.",
-    icon: "▶",
     ready: true,
   },
   {
@@ -90,7 +67,6 @@ export const SECTIONS: Section[] = [
     label: "CLI reference",
     description:
       "Every ubx command, flag and exit condition. Always describes the latest release rather than being versioned.",
-    icon: "❯",
     ready: true,
   },
   {
@@ -98,7 +74,6 @@ export const SECTIONS: Section[] = [
     label: "Integrations",
     description:
       "Wiring ubx into GitHub Actions, GitLab CI, Azure DevOps, CircleCI, Bamboo, and AI assistants.",
-    icon: "⇄",
     ready: true,
   },
   {
@@ -106,28 +81,17 @@ export const SECTIONS: Section[] = [
     label: "Server",
     description:
       "Running ubx server: configuration, deployment, and the API it exposes.",
-    icon: "▤",
     ready: true,
   },
 ];
-
-// The cross-link to the provider site, rendered alongside the section
-// cards as the ticket calls for. Kept separate from SECTIONS because it
-// leaves this site entirely.
-export const PROVIDER_SITE = {
-  label: "Provider reference",
-  description:
-    "Every resource and data source across eight providers, versioned per SDK release. A separate site with its own search.",
-  icon: "▦",
-  href: "https://providers.ubiquex.io",
-};
 
 // Footer identity. Required props since @ubx/docs-ui 0.3.0, because the
 // shared Footer used to hardcode the provider site's tagline and this
 // site rendered "Reference content is generated from each provider's own
 // real schema, not hand-written" on all 137 of its hand-written pages.
 export const FOOTER = {
-  tagline: "Hand-written documentation for ubx, kept in step with the released binary.",
+  tagline:
+    "Hand-written documentation for ubx, kept in step with the released binary.",
   links: [
     { label: "Provider reference", href: "https://providers.ubiquex.io" },
     { label: "GitHub", href: "https://github.com/Ubiquex" },

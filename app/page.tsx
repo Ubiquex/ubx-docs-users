@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PageShell } from "@ubx/docs-ui";
-import { NAV, SECTIONS, PROVIDER_SITE, FOOTER } from "@/lib/site";
+import { NAV, SECTIONS, FOOTER } from "@/lib/site";
 
 // The docs home is section cards, per UBI-247, matching the provider
 // landing page's own card grid. Sections whose content has not been
@@ -50,7 +50,6 @@ export default function Home() {
               href={`/${s.slug}`}
               className="rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-primary"
             >
-              <div className="text-lg text-primary">{s.icon}</div>
               <div className="mt-2 font-medium text-foreground">{s.label}</div>
               <div className="mt-1 text-sm text-foreground-muted">
                 {s.description}
@@ -62,7 +61,6 @@ export default function Home() {
               className="rounded-2xl border border-border bg-surface p-5 opacity-50"
               aria-disabled="true"
             >
-              <div className="text-lg text-foreground-muted">{s.icon}</div>
               <div className="mt-2 font-medium text-foreground">{s.label}</div>
               <div className="mt-1 text-sm text-foreground-muted">
                 {s.description}
@@ -73,19 +71,6 @@ export default function Home() {
             </div>
           ),
         )}
-
-        <a
-          href={PROVIDER_SITE.href}
-          className="rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-primary"
-        >
-          <div className="text-lg text-primary">{PROVIDER_SITE.icon}</div>
-          <div className="mt-2 font-medium text-foreground">
-            {PROVIDER_SITE.label}
-          </div>
-          <div className="mt-1 text-sm text-foreground-muted">
-            {PROVIDER_SITE.description}
-          </div>
-        </a>
       </div>
     </PageShell>
   );
