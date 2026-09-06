@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Footer } from "@ubx/docs-ui";
+import { THEME_INIT_SCRIPT } from "@ubx/docs-ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,29 +7,23 @@ export const metadata: Metadata = {
   description: "User documentation for ubx: concepts, guides, CLI reference, tutorials and blueprints.",
 };
 
-// Copied verbatim from ubx-docs-providers. Runs before paint, in <head>,
-// ahead of any hydration, so a reader who has already chosen light or
-// dark never sees a flash of the OS default first. Absent or invalid
-// storage leaves no attribute, which is exactly "follow the OS".
-const THEME_INIT_SCRIPT = `(function () {
-  try {
-    var stored = window.localStorage.getItem("ubx-docs-theme");
-    if (stored === "light" || stored === "dark") {
-      document.documentElement.setAttribute("data-theme", stored);
-    }
-  } catch (e) {}
-})();`;
-
+// The theme script and the Footer both used to live here, copied
+// verbatim from ubx-docs-providers. The script now comes from the
+// package, since a verbatim copy in two repos is duplication nothing
+// could see. The Footer moved into PageShell, which is what makes the
+// header, rail and footer one arrangement rather than three each site
+// assembled for itself.
+//
+// The script stays an inline <script> in <head> rather than a component:
+// it has to run before paint and ahead of hydration, otherwise a reader
+// who already chose light or dark sees a flash of the OS default first.
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full antialiased" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="min-h-full flex flex-col">
-        {children}
-        <Footer />
-      </body>
+      <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }

@@ -44,7 +44,14 @@ export type Section = {
   slug: string;
   label: string;
   description: string;
-  /** Simple inline glyph, matching the provider site's icon-free-ish restraint. */
+  /**
+   * Simple inline glyph, matching the provider site's icon-free-ish
+   * restraint. Each one is tied to what its section is about rather than
+   * being decorative: ⤓ download, ◎ the core model, ▶ start and walk
+   * through, ❯ a shell prompt, ⇄ two systems exchanging, ▤ a rack. The
+   * first set was arbitrary geometry (▼ ◈ ◎ ▸ ▤ ▣) with no relation to
+   * the sections it labelled.
+   */
   icon: string;
   /** False until the section's own content has actually been moved. */
   ready: boolean;
@@ -59,7 +66,7 @@ export const SECTIONS: Section[] = [
     slug: "install",
     label: "Install",
     description: "Getting ubx onto your machine and into your first stack.",
-    icon: "▼",
+    icon: "⤓",
     ready: true,
   },
   {
@@ -67,7 +74,7 @@ export const SECTIONS: Section[] = [
     label: "Concepts",
     description:
       "How ubx models infrastructure: the proposal ledger, resolution, drift, and what each record actually guarantees.",
-    icon: "◈",
+    icon: "◎",
     ready: true,
   },
   {
@@ -75,7 +82,7 @@ export const SECTIONS: Section[] = [
     label: "Tutorial",
     description:
       "End-to-end walkthroughs against real providers, from a first resource to promotion across environments and blueprints.",
-    icon: "◎",
+    icon: "▶",
     ready: true,
   },
   {
@@ -83,7 +90,7 @@ export const SECTIONS: Section[] = [
     label: "CLI reference",
     description:
       "Every ubx command, flag and exit condition. Always describes the latest release rather than being versioned.",
-    icon: "▸",
+    icon: "❯",
     ready: true,
   },
   {
@@ -91,7 +98,7 @@ export const SECTIONS: Section[] = [
     label: "Integrations",
     description:
       "Wiring ubx into GitHub Actions, GitLab CI, Azure DevOps, CircleCI, Bamboo, and AI assistants.",
-    icon: "▤",
+    icon: "⇄",
     ready: true,
   },
   {
@@ -99,7 +106,7 @@ export const SECTIONS: Section[] = [
     label: "Server",
     description:
       "Running ubx server: configuration, deployment, and the API it exposes.",
-    icon: "▣",
+    icon: "▤",
     ready: true,
   },
 ];
@@ -113,4 +120,20 @@ export const PROVIDER_SITE = {
     "Every resource and data source across eight providers, versioned per SDK release. A separate site with its own search.",
   icon: "▦",
   href: "https://providers.ubiquex.io",
+};
+
+// Footer identity. Required props since @ubx/docs-ui 0.3.0, because the
+// shared Footer used to hardcode the provider site's tagline and this
+// site rendered "Reference content is generated from each provider's own
+// real schema, not hand-written" on all 137 of its hand-written pages.
+export const FOOTER = {
+  tagline: "Hand-written documentation for ubx, kept in step with the released binary.",
+  links: [
+    { label: "Provider reference", href: "https://providers.ubiquex.io" },
+    { label: "GitHub", href: "https://github.com/Ubiquex" },
+    // No License link. ubx-docs-providers has a LICENSE file and this
+    // repo does not, so the link the shared Footer used to hardcode
+    // pointed at the wrong repo, and pointing it at this one would 404.
+    // Omitted until the repo actually has a licence to link to.
+  ],
 };

@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
-import { Header, MobileSidebarToggle } from "@ubx/docs-ui";
+import { PageShell } from "@ubx/docs-ui";
 import { DocSidebar } from "@/components/DocSidebar";
 import { Mdx } from "@/components/Mdx";
-import { NAV, TABS, SECTIONS } from "@/lib/site";
+import { NAV, TABS, SECTIONS, FOOTER } from "@/lib/site";
 import { getDoc, listDocs, listSectionSlugs } from "@/lib/content";
 
 // Catch-all rather than a single [slug] segment. The migrated sections
@@ -28,28 +28,28 @@ export default async function DocPage({ params }: PageProps<"/[section]/[...slug
   const doc = getDoc(section, slug);
   if (!doc) notFound();
   const docs = listDocs(section);
-  const sidebar = <DocSidebar docs={docs} section={section} />;
 
+  // The header, the sidebar rail and the footer are PageShell's, not
+  // this page's. This file used to write out the rail itself, in markup
+  // near-identical to the provider site's own copy of the same thing,
+  // which is how the two drifted apart while nominally sharing a UI.
   return (
-    <>
-      <Header
-        nav={NAV}
-        tabs={TABS}
-        activeTab={`/${section}`}
-        mobileMenu={<MobileSidebarToggle>{sidebar}</MobileSidebarToggle>}
-      />
-      <div className="mx-auto flex w-full max-w-7xl flex-1 gap-10 px-6 py-10">
-        <aside className="hidden w-64 shrink-0 lg:block">{sidebar}</aside>
-        <main className="min-w-0 flex-1">
-          <h1 className="text-2xl font-medium text-primary">{doc.title}</h1>
-          {doc.description ? (
-            <p className="mt-2 text-foreground-muted">{doc.description}</p>
-          ) : null}
-          <article className="mt-6 max-w-3xl">
-            <Mdx source={doc.body} />
-          </article>
-        </main>
-      </div>
-    </>
+    <PageShell
+      nav={NAV}
+      tabs={TABS}
+      activeTab={`/${section}`}
+      sidebar={<DocSidebar docs={docs} section={section} />}
+      sidebarLabel="Documentation"
+      searchPlaceholder="Search the docs"
+      footer={FOOTER}
+    >
+      <h1 className="text-2xl font-medium text-primary">{doc.title}</h1>
+      {doc.description ? (
+        <p className="mt-2 text-foreground-muted">{doc.description}</p>
+      ) : null}
+      <article className="mt-6 max-w-3xl">
+        <Mdx source={doc.body} />
+      </article>
+    </PageShell>
   );
 }
