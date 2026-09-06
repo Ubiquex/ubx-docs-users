@@ -11,10 +11,21 @@
 //
 // It also encodes a decision the site has already made once. Next's
 // static export is configured with trailingSlash: false, so a route
-// becomes "<route>.html", not "<route>/index.html". Any checker that
-// assumes the directory-index form silently passes everything. All three
-// shapes are accepted below so the check keeps working if that config
-// ever changes.
+// becomes "<route>.html", not "<route>/index.html".
+//
+// This used to accept ALL THREE shapes, on the reasoning that the check
+// would keep working if that config ever changed. That leniency is
+// precisely what let twelve dead links ship. Every card on the tutorial
+// index pointed at /tutorial/<name>, the build wrote
+// /tutorial/<name>/index.html, and the directory-index branch below
+// answered "exists". In production the CloudFront function rewrites
+// /tutorial/<name> to /tutorial/<name>.html, which was never written, so
+// all twelve 404'd while this check stayed green.
+//
+// So it now models production rather than tolerating it. The required
+// shape is read from next.config, and only that shape counts. A checker
+// that accepts more shapes than the server serves is not a lenient
+// checker, it is a broken one.
 //
 // Deliberately internal links only. External URLs would make this a
 // network-dependent, flaky check that fails when somebody else's site is
@@ -41,6 +52,15 @@ if (!existsSync(OUT)) {
 }
 
 const pages = walk(OUT);
+// Read, not assumed. If someone flips this in next.config, the checker
+// follows rather than silently checking the wrong shape.
+const CONFIG = readFileSync(
+  ["next.config.ts", "next.config.mjs", "next.config.js"].find((f) => existsSync(f)),
+  "utf8",
+);
+const TRAILING_SLASH = /trailingSlash\s*:\s*true/.test(CONFIG);
+console.log(`checking against trailingSlash: ${TRAILING_SLASH}`);
+
 const dead = new Map();
 
 for (const file of pages) {
@@ -49,10 +69,16 @@ for (const file of pages) {
     const href = m[1].replace(/\/$/, "") || "/";
     if (href === "/") continue;
     const bare = href.replace(/^\//, "");
-    const exists =
-      existsSync(join(OUT, `${bare}.html`)) ||
-      existsSync(join(OUT, bare, "index.html")) ||
-      existsSync(join(OUT, bare));
+    // A path whose last segment has an extension is a static asset, not
+    // a route: /logo/ubiquex.png is served as itself and never gets the
+    // .html treatment. Checked as a plain file. Splitting these out is
+    // what lets the route branch be strict without failing on assets.
+    const isAsset = /\.[a-z0-9]+$/i.test(bare.split("/").pop() ?? "");
+    const exists = isAsset
+      ? existsSync(join(OUT, bare))
+      : TRAILING_SLASH
+        ? existsSync(join(OUT, bare, "index.html"))
+        : existsSync(join(OUT, `${bare}.html`));
     if (!exists) {
       if (!dead.has(href)) dead.set(href, new Set());
       dead.get(href).add(relative(OUT, file));

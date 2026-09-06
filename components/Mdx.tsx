@@ -84,7 +84,16 @@ const components = {
     }> | undefined;
     const className = child?.props?.className ?? "";
     const lang = className.replace(/^language-/, "") || "text";
-    return <CodeBlock code={extractText(child?.props?.children)} lang={lang} />;
+    // The wrapping div carries the vertical rhythm. CodeBlock sets no
+    // margin of its own, deliberately, because the marketing site places
+    // it inside a grid where a margin would be wrong. Without this, two
+    // fences in a row sat flush against each other with no gap, which
+    // read as one block with a seam rather than two blocks.
+    return (
+      <div className="my-4">
+        <CodeBlock code={extractText(child?.props?.children)} lang={lang} />
+      </div>
+    );
   },
 };
 

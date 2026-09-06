@@ -3,7 +3,7 @@ import { PageShell } from "@ubx/docs-ui";
 import { DocSidebar } from "@/components/DocSidebar";
 import { Mdx } from "@/components/Mdx";
 import { NAV, SECTIONS, FOOTER } from "@/lib/site";
-import { getDoc, listDocs, listSectionSlugs } from "@/lib/content";
+import { getDoc, listDocs, listSectionSlugs, sectionGroupLabels } from "@/lib/content";
 
 // Catch-all rather than a single [slug] segment. The migrated sections
 // are nested (tutorial has 12 subdirectories) and all 313 internal links
@@ -40,7 +40,7 @@ export default async function DocPage({
   return (
     <PageShell
       nav={NAV}
-      sidebar={<DocSidebar docs={docs} section={section} />}
+      sidebar={<DocSidebar docs={docs} section={section} groupLabels={[...sectionGroupLabels(section)]} />}
       sidebarLabel="Documentation"
       searchPlaceholder="Search the docs"
       footer={FOOTER}
