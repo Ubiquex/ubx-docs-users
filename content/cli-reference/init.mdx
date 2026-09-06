@@ -1,6 +1,11 @@
 ---
 title: "ubx init"
 description: "Write a minimal, runnable .ubx/config, or recover a broken ledger head."
+# order 1 makes this the section's landing page and its first sidebar
+# entry. /cli-reference previously opened on whatever sorted first by title.
+# A command reference is alphabetical by nature, so it opened on
+# `ubx accept`. This is the first command anyone actually runs.
+order: 1
 ---
 
 `ubx init` writes the config file every other command reads. Its
