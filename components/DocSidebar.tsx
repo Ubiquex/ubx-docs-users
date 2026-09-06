@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SidebarSection, SidebarItemList, sidebarItemClass } from "@ubx/docs-ui";
 import type { DocMeta } from "@/lib/content";
 
 // One tree per section, not one enormous sidebar holding everything.
@@ -33,7 +34,10 @@ export function DocSidebar({
   // own index page presents those same 12 as titled card groups. The
   // reader was shown categories, then handed a list with none.
   const groups = new Map<string, DocMeta[]>();
-  // Seed in the index page's own order first, so the sidebar presents the
+  // The ungrouped bucket is seeded FIRST, so a section's own overview
+  // page sits above the categories rather than stranded below them.
+  groups.set("", []);
+  // Then the index page's own order, so the sidebar presents the
   // categories in the order the reader was shown them rather than in
   // whatever order the filesystem walk happened to produce.
   for (const [dir] of groupLabels) groups.set(dir, []);
@@ -54,14 +58,7 @@ export function DocSidebar({
     const active = pathname === href;
     return (
       <li key={d.slug}>
-        <Link
-          href={href}
-          className={
-            active
-              ? "block rounded px-2 py-1 bg-field text-primary"
-              : "block rounded px-2 py-1 text-foreground-muted hover:bg-surface hover:text-primary"
-          }
-        >
+        <Link href={href} className={sidebarItemClass(active)}>
           {d.title}
         </Link>
       </li>
@@ -71,18 +68,23 @@ export function DocSidebar({
   return (
     <nav aria-label={`${section} pages`} className="text-sm">
       {flat ? (
-        <ul className="space-y-1">{docs.map(link)}</ul>
+        <SidebarItemList>{docs.map(link)}</SidebarItemList>
       ) : (
         <div className="space-y-5">
           {[...groups.entries()].map(([name, items]) => (
-            <div key={name || "_"}>
-              {name ? (
-                <div className="mb-1 px-2 text-xs font-medium tracking-wide text-foreground-muted uppercase">
-                  {labels.get(name) ?? titleCase(name)}
-                </div>
-              ) : null}
-              <ul className="space-y-1">{items.map(link)}</ul>
-            </div>
+            name ? (
+              // Same heading and same indent as the provider site's own
+              // Resources and Data sources, from one component rather
+              // than a second copy of the treatment. The headings here
+              // had been font-medium in the muted colour with no indent
+              // beneath them, so a category did not separate from its
+              // own pages.
+              <SidebarSection key={name} heading={labels.get(name) ?? titleCase(name)}>
+                <SidebarItemList>{items.map(link)}</SidebarItemList>
+              </SidebarSection>
+            ) : (
+              <SidebarItemList key="_">{items.map(link)}</SidebarItemList>
+            )
           ))}
         </div>
       )}
