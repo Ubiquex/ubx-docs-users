@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { PageShell } from "@ubx/docs-ui";
 import { DocSidebar } from "@/components/DocSidebar";
 import { Mdx } from "@/components/Mdx";
-import { NAV, TABS, SECTIONS, FOOTER } from "@/lib/site";
+import { NAV, SECTIONS, FOOTER } from "@/lib/site";
 import { getDoc, listDocs, listSectionSlugs } from "@/lib/content";
 
 // Catch-all rather than a single [slug] segment. The migrated sections
@@ -15,14 +15,18 @@ export function generateStaticParams() {
   );
 }
 
-export async function generateMetadata({ params }: PageProps<"/[section]/[...slug]">) {
+export async function generateMetadata({
+  params,
+}: PageProps<"/[section]/[...slug]">) {
   const { section, slug } = await params;
   const doc = getDoc(section, slug);
   if (!doc) return {};
   return { title: `${doc.title} | ubx docs`, description: doc.description };
 }
 
-export default async function DocPage({ params }: PageProps<"/[section]/[...slug]">) {
+export default async function DocPage({
+  params,
+}: PageProps<"/[section]/[...slug]">) {
   const { section, slug } = await params;
   if (!SECTIONS.some((s) => s.slug === section && s.ready)) notFound();
   const doc = getDoc(section, slug);
@@ -36,8 +40,6 @@ export default async function DocPage({ params }: PageProps<"/[section]/[...slug
   return (
     <PageShell
       nav={NAV}
-      tabs={TABS}
-      activeTab={`/${section}`}
       sidebar={<DocSidebar docs={docs} section={section} />}
       sidebarLabel="Documentation"
       searchPlaceholder="Search the docs"
