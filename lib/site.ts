@@ -11,7 +11,7 @@ import type { NavLink } from "@ubx/docs-ui";
 export const NAV: NavLink[] = [
   { label: "Home", href: "https://ubiquex.io" },
   { label: "Install", href: "/install" },
-  { label: "Documentation", href: "/", current: true },
+  { label: "Documentation", href: "/" },
   { label: "Tutorials", href: "/tutorial" },
   { label: "Providers", href: "https://providers.ubiquex.io" },
   { label: "Blog", href: "https://ubiquex.io/blog/" },

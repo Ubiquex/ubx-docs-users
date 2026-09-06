@@ -19,7 +19,9 @@ export function Card({
 }) {
   const body = (
     <>
-      <div className="font-medium text-foreground">{title}</div>
+      {/* Persian green, the brand accent, rather than body colour. A card
+          title is a link into a section and now reads as one. */}
+      <div className="font-medium text-primary">{title}</div>
       {children ? (
         <div className="mt-1 text-sm text-foreground-muted [&>p:first-child]:mt-0 [&>p:last-child]:mb-0">
           {children}
