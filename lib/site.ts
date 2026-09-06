@@ -9,12 +9,12 @@ import type { NavLink } from "@ubx/docs-ui";
 // like one product, with "Docs" marked current here where "Providers"
 // is current there.
 export const NAV: NavLink[] = [
-  { label: "Home", href: "https://ubiquex.github.io/ubiquex-web/" },
+  { label: "Home", href: "https://ubiquex.io" },
   { label: "Install", href: "/install" },
   { label: "Documentation", href: "/", current: true },
   { label: "Tutorials", href: "/tutorial" },
   { label: "Providers", href: "https://providers.ubiquex.io" },
-  { label: "Blog", href: "https://ubiquex.github.io/ubiquex-web/blog" },
+  { label: "Blog", href: "https://ubiquex.io/blog/" },
 ];
 
 // NO TAB STRIP. The section tabs used to sit under the header on every
