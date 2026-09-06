@@ -91,7 +91,8 @@ export function getDoc(section: string, slug: string | string[]): Doc | null {
   // over azure/index.mdx rather than being shadowed by it.
   const leaf = join(sectionDir(section), ...parts.slice(0, -1), `${parts[parts.length - 1]}.mdx`);
   const dirIndex = join(sectionDir(section), ...parts, "index.mdx");
-  const path = existsSync(leaf) ? leaf : dirIndex;
+  const isDirIndex = !existsSync(leaf) && existsSync(dirIndex);
+  const path = isDirIndex ? dirIndex : leaf;
   if (!existsSync(path)) return null;
   const parsed = matter(readFileSync(path, "utf8"));
   const data = parsed.data as Record<string, unknown>;
@@ -104,12 +105,30 @@ export function getDoc(section: string, slug: string | string[]): Doc | null {
     title: typeof data.title === "string" ? data.title : parts.join("/"),
     description:
       typeof data.description === "string" ? data.description : undefined,
-    order: typeof data.order === "number" ? data.order : undefined,
+    // A directory's own index page belongs to that directory's group,
+    // not to no group. Its slug is a single segment now that a nested
+    // index owns its directory's route, so the parts.length rule below
+    // would drop all twelve tutorial overview pages out of their own
+    // categories and pile them up ungrouped beneath every group, listing
+    // "AWS", "Azure" and the rest a second time as bare links. Caught by
+    // looking at the rendered sidebar rather than by the types, which
+    // were perfectly happy.
     group:
       typeof data.group === "string"
         ? data.group
-        : parts.length > 1
+        : isDirIndex
           ? parts[0]
+          : parts.length > 1
+            ? parts[0]
+            : undefined,
+    // A directory index leads its own group: it is the overview, and
+    // sorting it by title put it in the middle of its own children.
+    // An explicit frontmatter order still wins.
+    order:
+      typeof data.order === "number"
+        ? data.order
+        : isDirIndex
+          ? Number.MIN_SAFE_INTEGER
           : undefined,
     body: parsed.content,
   };
