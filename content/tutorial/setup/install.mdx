@@ -59,8 +59,8 @@ You'll see:
 
 ```bash
 + .ubx/config.hcl has been generated successfully
-    see https://github.com/Ubiquex/ubiquex-docs, cli/config
-next: install this provider's bindings (`npm install @ubx/sdk-<name>`), write stack.ts, and run `ubx plan` -- see https://github.com/Ubiquex/ubiquex-docs, cli/config
+    see https://docs.ubiquex.io/cli-reference/config
+next: install this provider's bindings (`npm install @ubx/sdk-aws`), write stack.ts, and run `ubx plan` -- see https://docs.ubiquex.io/cli-reference/config
 ```
 
 Take a look at what it actually wrote:
@@ -75,13 +75,24 @@ stack = "payments"
 providers = {
   "aws" = {
     source  = "ubiquex/aws"
-    version = "1.0.0"
+    version = "3.0.0"
   }
 }
 ```
 
 Two real values, nothing else. Every other setting has a sensible
 default until you need it.
+
+<Note>
+  No region here, and no credentials. A ubx dynamic provider takes both
+  from the pinned snapshot named above, fixed when that snapshot was
+  built, so they are a property of the pin rather than of your stack.
+  `ubx init` refuses `--region` and `--provider-config` on this path
+  rather than writing settings the provider would reject. If you need a
+  different region, pin a snapshot built for it, or use a Terraform
+  registry provider with `--source`, which does take per-stack provider
+  configuration.
+</Note>
 
 ## Confirm it resolves correctly
 
@@ -90,8 +101,10 @@ ubx config
 ```
 
 ```bash
-stack             payments        (.ubx/config.hcl)
-provider.version  6.54.0          (.ubx/config.hcl)
+providers.aws.source = ubiquex/aws  <- /Users/you/payments/.ubx/config.hcl
+providers.aws.version = 3.0.0       <- /Users/you/payments/.ubx/config.hcl
+stack = payments                    <- /Users/you/payments/.ubx/config.hcl
+cascade stopped at: filesystem root (/)
 ```
 
 ## What you just did
