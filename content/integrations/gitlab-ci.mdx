@@ -209,7 +209,7 @@ drift-watch:
     - export AWS_SESSION_TOKEN=$(echo $creds | cut -d' ' -f3)
     - >
       ubx status --drift --stack payments
-      --dynamic-source ubiquex/aws --provider-version 3.0.0
+      --dynamic-source ubiquex/aws --provider-version 3.1.0
       --provider-config '{"region":"us-east-1"}'
 ```
 
@@ -264,7 +264,7 @@ plan:
     - export GLAB_ENABLE_CI_AUTOLOGIN=true
     - >
       ubx plan --ledger-dir .
-      --dynamic-source ubiquex/aws --provider-version 3.0.0
+      --dynamic-source ubiquex/aws --provider-version 3.1.0
       > plan-output.txt 2>&1
     - glab mr note create $CI_MERGE_REQUEST_IID -m "$(cat plan-output.txt)"
 ```
@@ -342,7 +342,7 @@ ship:
       --gitlab-project $CI_PROJECT_PATH
     - >
       ubx ship --yes
-      --dynamic-source ubiquex/aws --provider-version 3.0.0
+      --dynamic-source ubiquex/aws --provider-version 3.1.0
       --provider-config '{"region":"us-east-1"}'
 ```
 
