@@ -83,6 +83,17 @@ providers = {
 Two real values, nothing else. Every other setting has a sensible
 default until you need it.
 
+<Note>
+  No region here, and no credentials. A ubx dynamic provider takes both
+  from the pinned snapshot named above, fixed when that snapshot was
+  built, so they are a property of the pin rather than of your stack.
+  `ubx init` refuses `--region` and `--provider-config` on this path
+  rather than writing settings the provider would reject. If you need a
+  different region, pin a snapshot built for it, or use a Terraform
+  registry provider with `--source`, which does take per-stack provider
+  configuration.
+</Note>
+
 ## Confirm it resolves correctly
 
 ```bash

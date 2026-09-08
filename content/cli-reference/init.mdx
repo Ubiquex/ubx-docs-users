@@ -80,7 +80,13 @@ ledger head cleared, 2 stale plan draft(s) removed at . -- salt preserved untouc
 </ResponseField>
 
 <ResponseField name="--provider-config / --region" type="string">
-  Provider configuration, merged if both given.
+  Provider configuration, merged if both given. Registry providers only:
+  both are refused with `--dynamic-source`, because a ubx dynamic provider
+  declares no provider-level configuration. Its region and credentials
+  come from the pinned snapshot's own `[dynamic_providers.<name>.auth]`
+  block, fixed when that snapshot was generated, and cannot be set per
+  stack. To run against different settings, pin a snapshot generated for
+  them.
 </ResponseField>
 
 <ResponseField name="--github-repo / --tf-dir" type="string">
