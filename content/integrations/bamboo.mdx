@@ -148,7 +148,7 @@ tasks:
         export AWS_ACCESS_KEY_ID=${bamboo.aws_access_key_id}
         export AWS_SECRET_ACCESS_KEY=${bamboo.aws_secret_access_key.password}
         ubx status --drift --stack payments \
-          --dynamic-source ubiquex/aws --provider-version 3.1.0 \
+          --dynamic-source ubiquex/aws --provider-version 4.0.0 \
           --provider-config '{"region":"us-east-1"}'
 ```
 
@@ -203,7 +203,7 @@ Check drift:
           export AWS_ACCESS_KEY_ID=${bamboo.aws_access_key_id}
           export AWS_SECRET_ACCESS_KEY=${bamboo.aws_secret_access_key.password}
           ubx status --drift --stack payments \
-            --dynamic-source ubiquex/aws --provider-version 3.1.0 \
+            --dynamic-source ubiquex/aws --provider-version 4.0.0 \
             --provider-config '{"region":"us-east-1"}'
 ```
 
@@ -290,7 +290,7 @@ Plan:
           curl -L https://github.com/Ubiquex/ubiquex/releases/download/v0.2.0/ubx_0.2.0_linux_amd64.tar.gz | tar xz
           sudo mv ubx /usr/local/bin/
           ubx plan --ledger-dir . \
-            --dynamic-source ubiquex/aws --provider-version 3.1.0 \
+            --dynamic-source ubiquex/aws --provider-version 4.0.0 \
             > plan-output.txt 2>&1
           plan_exit=$?
 
@@ -408,7 +408,7 @@ Ship:
             --bitbucket-server-url https://bitbucket.example.com \
             --bitbucket-server-project PAYMENTS/payments-infra
           ubx ship --yes \
-            --dynamic-source ubiquex/aws --provider-version 3.1.0 \
+            --dynamic-source ubiquex/aws --provider-version 4.0.0 \
             --provider-config '{"region":"us-east-1"}'
 ```
 
