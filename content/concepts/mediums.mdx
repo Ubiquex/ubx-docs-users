@@ -11,14 +11,14 @@ delta from the same input, no interpretation step in between.
 ## How it works
 
 ```bash
-ubx plan --from-code create_platform.go
+ubx plan create_platform.go
 ```
 
 ```bash
 resolved: payments: 1 create(s), 0 change(s), 0 terminate(s)
 ```
 
-Bare `ubx plan`, with no `--from-code` flag at all, auto-detects a lone
+Bare `ubx plan`, with no argument at all, auto-detects a lone
 SDK program in the current directory and plans it directly -- see the
 [`ubx plan` reference](/cli-reference/plan) for the exact detection
 rule.

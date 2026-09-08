@@ -86,7 +86,7 @@ depended on. `ubx why` still reads and explains a dialogue captured
 before that change; `ubx promote` no longer re-resolves one.
 
 An SDK ref is read relative to the current working directory, the same
-place the original `ubx resolve --from-code`/`ubx plan --from-code`
+place the original `ubx resolve`/`ubx plan`
 read it from.
 
 ## Refusal cases
@@ -101,7 +101,7 @@ has changed since the source proposal was drafted (was
 sha256:b602525a2996..., now sha256:e818e9bee16c...) --
 promote only re-runs an UNCHANGED program; a changed
 program is new intent, not a promotion. Draft it fresh
-instead, e.g. "ubx plan --from-code create_platform.go"
+instead, e.g. "ubx plan create_platform.go"
 ```
 A real, expected refusal, not an edge case to work around --
 editing the program after the source proposal was accepted
