@@ -26,14 +26,14 @@ attribute becomes one of that blueprint's own declared parameters.
 ## Resolve it
 
 ```bash
-ubx resolve --from-code platform.ubx.hcl
+ubx resolve platform.ubx.hcl
 ```
 
 ```bash
 resolved: platform: 1 create(s), 0 change(s), 0 terminate(s)
 ```
 
-No separate command, no flag beyond the one `--from-code` already
+No separate command, no flag beyond what `ubx resolve` already
 takes for an SDK program, dispatched by the file's own `.ubx.hcl`
 extension. Nothing runs, the file is parsed directly into the same
 draft proposal an SDK program would have produced.

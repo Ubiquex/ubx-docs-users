@@ -9,16 +9,18 @@ rendering the full receipt right here and saving the result for `ubx
 ship` to pick up later by hash. Nothing about it touches the ledger,
 it's preview and staging, not a signed decision.
 
-It accepts either real input: a hand-written intent file, or an SDK
-program (`--from-code`). Run with no arguments at all in a directory
-with exactly one SDK program, and it detects which one you meant
-automatically, never guessing when more than one candidate exists.
+It takes one file and works out what it is from the extension: a
+hand-written intent file, or a TypeScript, Go or Python SDK program.
+Run it with no argument at all and it finds the program itself,
+preferring `stack.ts` (or `stack.go`, `stack.py`) if one is there and
+otherwise the only SDK program in the directory. Several programs with
+no conventional entry among them are listed, never guessed between.
 
 ## Usage
 
 ```bash
 ubx plan [intent-file] [flags]
-ubx plan --from-code <entry>.go|.ts|.py
+ubx plan <entry>.go|.ts|.py
 ```
 
 ## Examples
@@ -26,7 +28,7 @@ ubx plan --from-code <entry>.go|.ts|.py
 Planning from a real SDK program:
 
 ```bash
-ubx plan --from-code create_platform.go
+ubx plan create_platform.go
 ```
 
 ```bash
@@ -54,8 +56,8 @@ Plan  payments · from create_platform.go
 
 ## Flags
 
-<ResponseField name="--from-code" type="string">
-  Evaluate a TypeScript, Go, or Python SDK program, dispatched by file extension.
+<ResponseField name="--from-code" type="string" deprecated>
+  Hidden alias for passing the program as the argument. It existed to tell an SDK program apart from the markdown, diagram and chat mediums, which no longer exist, so it now distinguishes nothing. Still accepted so existing scripts keep working; nothing needs to type it.
 </ResponseField>
 
 <ResponseField name="--ledger-dir" type="string" default=".">

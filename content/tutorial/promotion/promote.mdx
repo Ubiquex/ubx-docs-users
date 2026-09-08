@@ -34,7 +34,7 @@ func main() {
 Resolve and accept it in dev, same as any other source:
 
 ```bash
-ubx resolve --from-code create_platform.go --out resolved.json
+ubx resolve create_platform.go --out resolved.json
 ubx accept resolved.json
 ```
 
@@ -79,7 +79,7 @@ has changed since the source proposal was drafted (was
 sha256:b602525a2996..., now sha256:e818e9bee16c...) --
 promote only re-runs an UNCHANGED program; a changed
 program is new intent, not a promotion. Draft it fresh
-instead, e.g. "ubx plan --from-code create_platform.go"
+instead, e.g. "ubx plan create_platform.go"
 ```
 
 A real, expected refusal — the accepted source proposal no longer

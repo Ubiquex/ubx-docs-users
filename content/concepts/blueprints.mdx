@@ -13,7 +13,7 @@ a chance to get some small detail wrong differently than last time.
 A blueprint is a reusable pattern, authored once as a pre-resolved
 intent document, then compiled into real, deterministic code. Nothing
 in this pipeline calls an LLM: an author produces the resolved pattern
-themselves (writing an SDK program and running `ubx resolve --from-code`,
+themselves (writing an SDK program and running `ubx resolve` on it,
 or converting an existing Terraform module with `ubx blueprint convert`),
 and `ubx blueprint build` only ever parses what they produced.
 

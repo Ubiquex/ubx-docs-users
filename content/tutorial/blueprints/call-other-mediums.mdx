@@ -41,7 +41,7 @@ ubx plan platform.json --out other.json
 ## Compare the two
 
 ```bash
-ubx resolve --from-code create_platform.go --out sdk.json
+ubx resolve create_platform.go --out sdk.json
 diff sdk.json other.json
 ```
 
@@ -154,7 +154,7 @@ ciplatform.CiPlatform(
 ```
 
 ```bash
-ubx resolve --from-code create_platform.go --out sdk.json
+ubx resolve create_platform.go --out sdk.json
 jq '.delta.creates[0].config' sdk.json other.json
 ```
 

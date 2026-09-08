@@ -52,7 +52,7 @@ mkdir payments && cd payments
 `ubx init` writes the config file every other command reads.
 
 ```bash
-ubx init --dynamic-source ubiquex/aws --provider-version 1.0.0
+ubx init --dynamic-source ubiquex/aws --provider-version 3.0.0
 ```
 
 You'll see:
@@ -60,7 +60,7 @@ You'll see:
 ```bash
 + .ubx/config.hcl has been generated successfully
     see https://github.com/Ubiquex/ubiquex-docs, cli/config
-next: write an intent file and run `ubx plan <file>.json`, or write an SDK program and run `ubx plan --from-code <file>.ts`
+next: install this provider's bindings (`npm install @ubx/sdk-<name>`), write stack.ts, and run `ubx plan` -- see https://github.com/Ubiquex/ubiquex-docs, cli/config
 ```
 
 Take a look at what it actually wrote:

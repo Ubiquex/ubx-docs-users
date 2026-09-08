@@ -67,9 +67,9 @@ your machine is never reachable from inside it.
 ## Resolve all three and compare
 
 ```bash
-ubx resolve --from-code create_platform.go --out go.json
-ubx resolve --from-code create_platform.ts --out ts.json
-ubx resolve --from-code ubx-sdk-aws/sdk/python/create_platform.py --out py.json
+ubx resolve create_platform.go --out go.json
+ubx resolve create_platform.ts --out ts.json
+ubx resolve ubx-sdk-aws/sdk/python/create_platform.py --out py.json
 diff go.json ts.json
 diff go.json py.json
 ```

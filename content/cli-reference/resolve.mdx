@@ -19,14 +19,14 @@ absent, and it's refused if another live resource still depends on it.
 
 ```bash
 ubx resolve <intent-file> [flags]
-ubx resolve --from-code <entry>.ts|.go|.py [flags]
-ubx resolve --from-code <entry>.ubx.hcl [flags]
+ubx resolve <entry>.ts|.go|.py [flags]
+ubx resolve <entry>.ubx.hcl [flags]
 ```
 
 ## Examples
 
 ```bash
-ubx resolve --from-code create_platform.go
+ubx resolve create_platform.go
 ```
 
 ```bash
@@ -37,13 +37,13 @@ resolved: payments: 1 create(s), 0 change(s), 0 terminate(s)
 A `.ubx.hcl` file resolves the same way, no separate flag or command:
 
 ```bash
-ubx resolve --from-code platform.ubx.hcl
+ubx resolve platform.ubx.hcl
 ```
 
 ## Flags
 
-<ResponseField name="--from-code" type="string">
-  Evaluate a TypeScript/Go/Python SDK program, or parse a `.ubx.hcl` blueprint-calling file, dispatched by extension. Mutually exclusive with the positional argument. A `.ubx.hcl` file is parsed, not evaluated, no code runs.
+<ResponseField name="--from-code" type="string" deprecated>
+  Hidden alias for passing the program as the argument. It existed to tell an SDK program apart from the markdown, diagram and chat mediums, which no longer exist, so it now distinguishes nothing. Still accepted so existing scripts keep working; nothing needs to type it.
 </ResponseField>
 
 <ResponseField name="--ledger-dir" type="string" default=".">
