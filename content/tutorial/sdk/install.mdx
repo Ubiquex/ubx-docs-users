@@ -14,8 +14,9 @@ what an SQS queue looks like, and bindings have no `resource()`/
 for exactly this reason.
 
 Versions below were fetched directly from each real registry on
-2026-09-05, not from memory. Registries move; check the registry itself
-before treating a version here as current.
+2026-09-08, and every install command and hello world on this page was
+run before it was written down. Registries move; check the registry
+itself before treating a version here as current.
 
 ## Go
 
@@ -27,14 +28,20 @@ dependency, so one `go get` pulls both):
 
 ```bash
 go mod init payments
-go get github.com/ubiquex/ubx-sdk-aws/sdk/go
+go get github.com/ubiquex/ubx-sdk-aws/sdk/go/v3
 ```
 
-Versions this resolves, confirmed against the Go module proxy: runtime
-`github.com/ubiquex/ubx-sdk-go` v0.3.0, bindings
-`github.com/ubiquex/ubx-sdk-aws/sdk/go` v1.0.0. The bindings live in a
-subdirectory module of their repo, tagged `sdk/go/v1.0.0`, which is why
-the module path carries the `/sdk/go` suffix.
+Versions this resolves, confirmed against the Go module proxy: bindings
+`github.com/ubiquex/ubx-sdk-aws/sdk/go/v3` v3.0.1, runtime
+`github.com/ubiquex/ubx-sdk-go` v0.2.0.
+
+Two things about that module path are easy to get wrong. The bindings
+live in a subdirectory module of their repo, which is where the
+`/sdk/go` comes from. The trailing `/v3` is Go's own rule that a module
+carries its major version in its path from v2 onward, and it is not
+optional: `go get` without it resolves the last release that had no
+suffix, which is v1.0.0, and it does so silently with no error and no
+warning. If you find yourself with v1 bindings, this is why.
 
 **Hello world**:
 
@@ -42,15 +49,15 @@ the module path carries the `/sdk/go` suffix.
 package main
 
 import (
+	sqs "github.com/ubiquex/ubx-sdk-aws/sdk/go/v3/aws/sqs"
 	ubx "github.com/ubiquex/ubx-sdk-go/runtime"
-	sqs "github.com/ubiquex/ubx-sdk-aws/sdk/go/aws/sqs"
 )
 
 func main() {
 	ubx.Main(ubx.Stack("payments", func() {
 		ubx.Intent(ubx.IntentInfo{Summary: "hello, ubx"})
 		ubx.Resource(sqs.Queue, "example", sqs.QueueConfig{
-			Name: "example",
+			QueueName: "example",
 		})
 	}))
 }
@@ -68,8 +75,8 @@ dependency, so one `npm install` pulls both):
 npm install @ubx/sdk-aws
 ```
 
-Versions this resolves, confirmed against the npm registry: runtime
-`@ubx/sdk` 1.0.2, bindings `@ubx/sdk-aws` 2.2.1.
+Versions this resolves, confirmed against the npm registry: bindings
+`@ubx/sdk-aws` 3.0.1, runtime `@ubx/sdk` 1.0.2.
 
 TypeScript publishes to npm rather than JSR. npm has no protocol
 specifier that resolves inline the way `jsr:` does under Deno, so
@@ -85,7 +92,7 @@ import { Queue } from "@ubx/sdk-aws/aws/sqs/queue";
 export default stack("payments", () => {
   intent({ summary: "hello, ubx" });
   resource(Queue, "example", {
-    name: "example",
+    queueName: "example",
   });
 });
 ```
@@ -102,8 +109,8 @@ dependency, so one `pip install` pulls both):
 pip install ubx-sdk-aws
 ```
 
-Versions this resolves, confirmed against PyPI: runtime `ubx-sdk`
-(imported as `ubx_sdk`) 0.2.1, bindings `ubx-sdk-aws` 2.2.1.
+Versions this resolves, confirmed against PyPI: bindings `ubx-sdk-aws`
+3.0.1, runtime `ubx-sdk` (imported as `ubx_sdk`) 0.2.1.
 
 **Hello world**:
 
@@ -114,7 +121,7 @@ from ubx.aws.sqs import Queue, QueueConfig
 def describe():
     ubx.intent("hello, ubx")
     ubx.resource(Queue, "example", QueueConfig(
-        name="example",
+        queue_name="example",
     ))
 
 if __name__ == "__main__":
