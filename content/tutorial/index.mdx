@@ -62,8 +62,15 @@ as a blueprint.
 
 ## Advanced
 
-The same real patterns, per cloud, plus migrating existing Terraform
-and running a ledger your whole team shares.
+The same real patterns, per cloud, plus running a ledger your whole
+team shares.
+
+Already running Terraform? You do not convert your modules, you onboard
+what they built: `ubx scan --all --tfstate ./terraform.tfstate` reads
+your existing state and brings every resource in it under the ledger,
+with no rewrite of anything. See
+[Bulk Onboarding from Terraform State](/concepts/bulk-onboarding), and
+[AWS onboarding](/tutorial/aws/onboarding) for it end to end.
 
 <CardGroup cols={2}>
   <Card title="AWS" icon="aws" href="/tutorial/aws">
