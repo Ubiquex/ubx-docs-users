@@ -1,0 +1,123 @@
+---
+title: "ubx restore"
+description: "Reconstruct a stack exactly as it was at an earlier ledger head, as an ordinary reviewable proposal."
+---
+
+`ubx restore` takes a ledger head, a proposal ID or an
+[alias](/cli-reference/alias), and rebuilds the stack's exact shape as
+it existed at that point: every resource that head's chain contained,
+with the config that was recorded then.
+
+It is resolved against current reality, not copied. A resource the
+target head had and live state does not is a **create**. One both have
+with a different value is a **change**. One live state has and the
+target head does not is a **destroy**. Blast radius and cost come out of
+the ordinary resolver, so what you review is a normal proposal.
+
+This is exact-state restore, not a merge. A resource created after the
+target head is destroyed, unconditionally.
+
+Like `plan`, `resolve` and `promote`, it never touches the ledger. The
+result is a hash-addressed plan file under `.ubx/plans/`, ready for
+`ubx ship`.
+
+## Usage
+
+```bash
+ubx restore <head-or-alias> [flags]
+```
+
+## Examples
+
+Find a head worth going back to, then name it:
+
+```bash
+ubx history
+```
+
+```
+History  payments · 1 proposal
+
+▸ 9e5c70120e97…  change · +1 ~0 -0 · roozbeh via local · just now
+    queue
+```
+
+```bash
+ubx alias set known-good 9e5c70120e97…
+```
+
+Restore to it. Here a second resource was shipped after that head, so
+restoring means destroying it:
+
+```bash
+ubx restore known-good
+```
+
+```
+restoring payments -> ledger head 9e5c70120e97…
+Plan  payments
+
+  - payments.fake_widget.dlq destroy
+      id: "computed-id"
+      name: "dead-letter"
+      tags: {}
+
+delta: +0 ~0 -1
+
+blast radius: +0 ~0 -1
+warning: no dependent stacks were checked, so another stack may still reference
+payments.fake_widget.dlq -- set known_dependents in .ubx/config, or pass
+--known-dependent <ledger_dir>, to check before destroying
+
+ubx-proposal: 51d613839c9b…
+next: ubx ship 51d613839c9b --confirm-terminate
+```
+
+Nothing has changed yet. Review the plan, then ship it like any other
+proposal. A restore that destroys anything needs `--confirm-terminate`
+at ship time, the same double consent every destructive proposal gets.
+
+## Flags
+
+<ResponseField name="--ledger-dir" type="string" default=".">
+  Root directory containing `ledger/` and `.ubx/` (default `.`). Also where the plan is saved.
+</ResponseField>
+
+<ResponseField name="--stack" type="string">
+  Which stack to restore. Required only when `.ubx/config`'s `[ledger]` store is a remote store; unused
+  for the default git store.
+</ResponseField>
+
+<ResponseField name="--provider / --source / --provider-version" type="string">
+  Provider selection, same as `ubx plan`. A restore resolves against live state, so it needs a provider.
+</ResponseField>
+
+<ResponseField name="--known-dependent" type="list(string)">
+  A neighbor stack's ledger directory to check for cross-stack orphan references before destroying.
+  Repeatable, and **adds to** `.ubx/config`'s own `known_dependents` list rather than replacing it. See
+  [Cross-Stack Orphan Protection](/concepts/orphan-protection).
+</ResponseField>
+
+<ResponseField name="--out" type="string">
+  Additionally write the full resolved proposal here. The plan is always saved under `.ubx/plans/`
+  regardless.
+</ResponseField>
+
+<ResponseField name="--timeout" type="string" default="2m">
+  Timeout for provider acquisition and schema fetch.
+</ResponseField>
+
+## Notes
+
+A restore is recorded as an ordinary `change` proposal carrying an
+`intent.sources[].kind` of `restore`, so its provenance says where the
+shape came from without claiming the result is identical to that head.
+The ledger stays append-only: restoring does not rewrite or remove
+anything, it adds a proposal that moves live state back.
+
+## See also
+
+- [`ubx alias`](/cli-reference/alias)
+- [`ubx history`](/cli-reference/history)
+- [`ubx ship`](/cli-reference/ship)
+- [Cross-Stack Orphan Protection](/concepts/orphan-protection)
