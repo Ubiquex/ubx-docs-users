@@ -12,7 +12,6 @@ wasn't tampered with along the way.
 
 ```bash
 ubx blueprint build [dir] [--lang go|ts|py|all]
-ubx blueprint convert --from-terraform <module-dir> --out <dir>
 ubx blueprint package <dir> -o <tarball>
 ubx blueprint push <tarball> --to oci://<registry>/<repo>:<tag>
 ubx blueprint pull <source> <dest>
@@ -62,20 +61,6 @@ verified "ci-platform": content hash sha256:a1b2c3... matches (7 file(s))
   `go`, `ts`, `py`, or `all` (default: all).
 </ResponseField>
 
-### convert
-
-<ResponseField name="--from-terraform" type="string">
-  Path to an existing Terraform module.
-</ResponseField>
-
-<ResponseField name="--out" type="string">
-  Directory to write the converted blueprint into.
-</ResponseField>
-
-<ResponseField name="--lang" type="string">
-  Target language(s) for the converted blueprint's own generated code: `go`, `ts`, `py`, or `all` (default: all).
-</ResponseField>
-
 ### package
 
 <ResponseField name="-o / --output" type="string">
@@ -118,4 +103,3 @@ no seventh for discovery, no `search`, no `list` against a registry. A
 - [Blueprint Outputs](/concepts/outputs)
 - [List Parameters & Iteration](/concepts/blueprint-list-params)
 - [Overriding a Blueprint's Internals](/concepts/blueprint-overrides)
-- [Terraform Module Conversion](/concepts/terraform-conversion)
