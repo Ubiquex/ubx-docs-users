@@ -30,6 +30,13 @@ MCP client start it for you.
 Point your client's working directory at your real `payments/`
 directory, same defaults a human sitting there would get.
 
+That directory is where the assistant reads both your ledger and your
+`.ubx/config` from. If your client launches the server somewhere else,
+the tools say so rather than reporting an empty ledger: you get an
+error naming the directory they actually looked in. The assistant can
+also pass a `ledger_dir` per call to name a stack root directly, and a
+`~/` path in it works the way you would write it.
+
 ## Ask it something real
 
 In your assistant's own chat interface:
