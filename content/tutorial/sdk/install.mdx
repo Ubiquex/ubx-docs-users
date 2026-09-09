@@ -102,12 +102,20 @@ export default stack("payments", () => {
 **Requirements**: Python 3.9 or newer, confirmed from `ubx-sdk`'s own
 `requires_python` metadata on PyPI.
 
-**Install** (the bindings package declares the runtime as its own real
-dependency, so one `pip install` pulls both):
+**Install** into a virtualenv (the bindings package declares the runtime
+as its own real dependency, so one `pip install` pulls both):
 
 ```bash
-pip install ubx-sdk-aws
+python3 -m venv .venv
+./.venv/bin/pip install ubx-sdk-aws
 ```
+
+The virtualenv is not optional. `ubx plan` evaluates your program in a
+sandbox that can only see directories it is given, and it finds your
+packages by looking for a `.venv` or `venv` beside your program, or in a
+parent directory. A system-wide or `--user` install is not visible to
+it, and the program will fail with `ModuleNotFoundError` on its first
+import.
 
 Versions this resolves, confirmed against PyPI: bindings `ubx-sdk-aws`
 3.0.1, runtime `ubx-sdk` (imported as `ubx_sdk`) 0.2.1.
