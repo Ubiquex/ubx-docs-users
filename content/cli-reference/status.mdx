@@ -1,13 +1,20 @@
 ---
 title: "ubx status"
-description: "Report every resource the ledger knows about, optionally comparing against live state."
+description: "Report what your stack tracks right now, optionally comparing against live state."
 ---
 
 `ubx status` is the fast, read-only report over your whole fleet. On its
 own it's ledger-only, no provider launched, no credentials needed, just
-a listing of every resource the ledger has ever recorded. With
+a listing of every resource the ledger currently tracks. With
 `--drift`, it also reads each resource's real, live state and classifies
 it clean, drifted, or unreadable.
+
+This is the current state, not the history. A resource you created and
+later destroyed is not listed here, because it no longer exists, so
+**zero resources does not mean an empty ledger**. The `--json` payload's
+`summary.proposals_total` says how many proposals the ledger actually
+holds; if that is above zero and the listing is empty, [`ubx
+history`](/cli-reference/history) shows what happened.
 
 Unlike `ubx scan`, it never generates a proposal, it only reports. Use
 `ubx scan` once you're ready to act on what it finds.
@@ -96,3 +103,4 @@ continues.
 - [FoldState](/concepts/foldstate)
 - [Drift, Adoption & Revert](/concepts/drift)
 - [`ubx scan`](/cli-reference/scan)
+- [`ubx history`](/cli-reference/history)

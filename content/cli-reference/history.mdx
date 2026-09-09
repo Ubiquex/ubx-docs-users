@@ -1,0 +1,75 @@
+---
+title: "ubx history"
+description: "Every proposal in a stack's ledger, newest first: what has happened, not what exists now."
+---
+
+`ubx history` lists a stack's own real ledger chain, newest head first.
+Every proposal it has ever accepted, with each one's kind, summary,
+blast radius, who accepted it and when.
+
+This is the past, not the present. `ubx status` reports what your stack
+tracks right now; a resource you created and later destroyed is not in
+that report, because it no longer exists. Its proposals are still here,
+permanently. Zero resources in `ubx status` does not mean an empty
+ledger, and this is the command that shows the difference.
+
+## Usage
+
+```bash
+ubx history [flags]
+```
+
+## Examples
+
+```bash
+ubx history
+```
+
+```
+History · 1 proposal
+
+▸ 925f07b8a856…  adoption · +0 ~0 -0 · roozbeh via local · just now
+    adopt existing payments.fake_widget.queue into the ledger (discovered by scan)
+```
+
+Each entry's hash is a proposal ID, which `ubx why` takes directly for
+the full detail of that one decision:
+
+```bash
+ubx why 925f07b8a856
+```
+
+## Flags
+
+<ResponseField name="--ledger-dir" type="string" default=".">
+  Root directory containing `ledger/` and `.ubx/` (default `.`).
+</ResponseField>
+
+<ResponseField name="--stack" type="string">
+  Which stack's history to list. Required only when `.ubx/config`'s `[ledger]` store is a remote
+  store; unused for the default git store.
+</ResponseField>
+
+<ResponseField name="--full-hashes">
+  Render every hash in full, never truncated.
+</ResponseField>
+
+<ResponseField name="--json">
+  Emit one JSON document instead of human text.
+</ResponseField>
+
+## Notes
+
+The `--json` payload carries `total` (how many proposals the chain
+holds) and `truncated`. `ubx history` never truncates, so `total` always
+equals the number of entries and `truncated` is always `false` from the
+CLI. Both fields exist because the `ubx_history` MCP tool does limit its
+output, and a shortened list has to be distinguishable from a complete
+one.
+
+## See also
+
+- [`ubx status`](/cli-reference/status)
+- [`ubx why`](/cli-reference/why)
+- [`ubx mcp`](/cli-reference/mcp)
+- [FoldState](/concepts/foldstate)

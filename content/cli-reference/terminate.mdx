@@ -65,7 +65,9 @@ needed)
 </ResponseField>
 
 <ResponseField name="--known-dependent" type="list(string)">
-  A neighbor stack's ledger directory to check for cross-stack orphan references. Repeatable.
+  A neighbor stack's ledger directory to check for cross-stack orphan references. Repeatable, and
+  **adds to** `.ubx/config`'s own `known_dependents` list rather than replacing it. See
+  [Cross-Stack Orphan Protection](/concepts/orphan-protection).
 </ResponseField>
 
 <ResponseField name="--full-hashes">

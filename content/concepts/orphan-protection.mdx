@@ -11,13 +11,27 @@ ever show that danger. The reference lives entirely in theirs.
 ## How it works
 
 Before a destroy resolves, ubx checks whether any *other* stack you name
-still holds a pinned reference to the address being destroyed. Pass
-`--known-dependent` naming a neighbor stack's own ledger directory, and
-the resolver walks that neighbor's real, current references, refusing
-the destroy outright if one still points at your target.
+still holds a pinned reference to the address being destroyed. Name a
+neighbor stack's own ledger directory, and the resolver walks that
+neighbor's real, current references, refusing the destroy outright if
+one still points at your target.
+
+Name them once, in `.ubx/config`, next to everything else that is true
+of your stack rather than of one command:
+
+```hcl
+known_dependents = ["../payments", "../security"]
+```
+
+Every command that resolves a destroy reads it: `terminate`, `plan`,
+`resolve`, `promote`, `restore`. `promote` reads the *target's* config,
+since a destroy resolved there orphans whoever depends on the target.
+
+`--known-dependent` still works and **adds to** that list rather than
+replacing it, for a neighbor that matters to one destroy only:
 
 ```bash
-ubx terminate network.aws_vpc.main --known-dependent ../payments
+ubx terminate network.aws_vpc.main --known-dependent ../scratch-stack
 ```
 
 ```bash
@@ -37,16 +51,33 @@ destroyed out from under a reference nobody thought to look for.
 
 ## What this actually looks like
 
-This is deliberately opt-in and best-effort, not automatic. Omitting
-`--known-dependent` doesn't mean "no dependents exist," it means none
-were checked, and the resolved proposal records that gap honestly:
+This is best-effort and explicit, not automatic. Naming no neighbors
+doesn't mean "no dependents exist," it means none were checked, and ubx
+tells you so at both moments you're deciding, in the plan receipt and
+again at the ship confirmation just above the prompt:
 
-```json
-{ "kind": "cross_stack_orphan_check", "status": "not_performed" }
+```
+blast radius: +0 ~0 -1
+warning: no dependent stacks were checked, so another stack may still
+reference network.aws_vpc.main -- set known_dependents in .ubx/config,
+or pass --known-dependent <ledger_dir>, to check before destroying
 ```
 
-Never silently assumed safe. A reviewer reading the proposal sees
-exactly whether this check ran, and against which neighbors.
+When the check does run, it says what it walked:
+
+```
+cross-stack check: no stack in ../payments, ../security references
+network.aws_vpc.main
+```
+
+Both are recorded in the resolved proposal too, as
+`status: "not_performed"` or `status: "checked_clear"` with the
+directories listed, so a reviewer reading the proposal months later sees
+exactly how much protection that destroy actually had.
+
+The positive line matters as much as the warning. Without it, a clean
+check and a version of ubx that performs no check at all would look
+identical from the output.
 
 ## Why it matters
 

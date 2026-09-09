@@ -58,7 +58,10 @@ next: ubx ship 8224643bbbc5...
 </ResponseField>
 
 <ResponseField name="--known-dependent" type="list(string)">
-  A neighbor stack's ledger to check for orphan references in the target's own graph.
+  A neighbor stack's ledger to check for orphan references in the target's own graph. Repeatable, and
+  **adds to** the *target's* `.ubx/config` `known_dependents` list rather than replacing it: a destroy
+  resolved in the target orphans whoever depends on the target, so the source environment's neighbors
+  are the wrong list. See [Cross-Stack Orphan Protection](/concepts/orphan-protection).
 </ResponseField>
 
 <ResponseField name="--timeout" type="string" default="3m">
