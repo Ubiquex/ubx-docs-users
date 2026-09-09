@@ -1,0 +1,104 @@
+---
+title: "ubx alias"
+description: "Human-readable names for ledger heads, so you can say known-good instead of a 64-character hash."
+---
+
+A ledger head is a proposal ID: 64 hex characters. `ubx alias` gives one
+a name you can actually say and type, so `ubx restore known-good` works
+instead of pasting a hash you had to go and find first.
+
+An alias is a local pointer, not part of the ledger. Removing one never
+touches the proposal it pointed at, and nothing about a proposal's
+identity or hash depends on whether an alias exists.
+
+## Usage
+
+```bash
+ubx alias set <name> <head-or-alias>
+ubx alias resolve <name>
+ubx alias list
+ubx alias remove <name>
+```
+
+## Examples
+
+Name the head you want to be able to get back to:
+
+```bash
+ubx alias set known-good 9e5c70120e97fbaf215ac1fa8cddf4618d9aefc31f621a279faa01a3c866d889
+```
+
+```
+payments: known-good -> 9e5c70120e97…
+```
+
+See what this ledger directory knows about:
+
+```bash
+ubx alias list
+```
+
+```
+payments.known-good -> 9e5c70120e97…
+```
+
+Get the full hash back, for a command or a script:
+
+```bash
+ubx alias resolve known-good
+```
+
+```
+9e5c70120e97fbaf215ac1fa8cddf4618d9aefc31f621a279faa01a3c866d889
+```
+
+Repointing an existing alias at a **different** head is refused unless
+you say so:
+
+```bash
+ubx alias set known-good 396c3077cccc…
+```
+
+```
+alias set: "known-good" already points to 9e5c70120e97… in stack "payments"
+-- pass --force to repoint it to 396c3077cccc…
+```
+
+Setting an alias to the head it already points at is a no-op and
+succeeds, so re-running the same `alias set` in a script is safe.
+
+## Flags
+
+<ResponseField name="--ledger-dir" type="string" default=".">
+  Root directory containing `ledger/` and `.ubx/` (default `.`). Aliases live alongside the ledger they
+  name, so this decides which set you are working with.
+</ResponseField>
+
+<ResponseField name="--stack" type="string">
+  Which stack the alias belongs to. `set` and `remove` default to `.ubx/config.hcl`'s own `stack` key.
+  `resolve` and `list` search every stack this ledger directory holds an alias for when it is omitted,
+  and `resolve` errors if the name is ambiguous across more than one.
+</ResponseField>
+
+<ResponseField name="--force">
+  `set` only. Repoint an alias that already points somewhere else.
+</ResponseField>
+
+<ResponseField name="--json">
+  `resolve` and `list` only. Emit one JSON document instead of human text.
+</ResponseField>
+
+## Notes
+
+Exit codes follow the usual contract. Refusing to repoint without
+`--force`, and resolving a name that does not exist, both exit `2`.
+
+Aliases are per ledger directory and are not shared through the ledger
+itself, so a name you set locally is not visible to a teammate working
+from their own checkout.
+
+## See also
+
+- [`ubx restore`](/cli-reference/restore)
+- [`ubx history`](/cli-reference/history)
+- [`ubx why`](/cli-reference/why)
