@@ -44,10 +44,41 @@ without ever leaving the conversation.
 
 ## Flags
 
-This command takes no flags. Configuration is discovered from the
-process's own working directory, exactly like every other `ubx`
-command, point your MCP client's working directory at a real ledger
-checkout to get the same defaults a human sitting there would.
+This command takes no flags. Which stack a call runs against is a tool
+input, `ledger_dir`, not a server-level setting, see below.
+
+## Which stack a call runs against
+
+Every tool that opens a ledger takes an optional `ledger_dir`. It names
+a stack root: the directory holding that stack's `.ubx/` and, once
+anything has been accepted, its `ledger/`. That one directory supplies
+both the ledger the call reads and the `.ubx/config` it runs under, so
+a question about one stack never picks up another stack's provider
+settings or ledger store.
+
+Leave `ledger_dir` out and the stack root is the server process's own
+working directory, exactly like every other `ubx` command. Point your
+MCP client's working directory at a real ledger checkout and an
+assistant gets the same defaults a human sitting there would, without
+naming a path at all.
+
+Two things an assistant will run into, both deliberate:
+
+- **A path that is not a stack root is refused**, with an error naming
+  the path it tried. It is not reported as a stack that happens to
+  track nothing. A directory `ubx init` has run in is a stack root even
+  before you have shipped anything, and correctly reports zero
+  resources.
+- **A leading `~/` is expanded** against the home directory of whoever
+  the server runs as. An assistant writes `~/stacks/payments` because
+  that is how you would write it, and there is no shell in front of an
+  MCP call to expand it. `~someone-else/` is refused rather than
+  guessed at.
+
+If your MCP client launches the server somewhere unexpected, that
+refusal is what you will see, and the error names the directory it
+used. That is the fix: set the client's working directory, or have the
+assistant pass `ledger_dir` explicitly.
 
 ## Notes
 
