@@ -1,0 +1,208 @@
+---
+title: "Writing a blueprint as code"
+description: "Write an ordinary function, and let ubx read its signature to learn what it takes."
+---
+
+There are two ways to write a blueprint. The first tutorial used an
+Ubxfile: a declaration of parameters beside a pre-resolved document of
+resources. This one writes the same kind of blueprint as **ordinary
+code in one language**, with nothing to declare and nothing to build.
+
+You write a function. `ubx` reads its signature to learn what the
+blueprint takes and returns.
+
+## Write the function
+
+A blueprint is one exported function taking one config struct. No
+Ubxfile, no generated bindings, and it imports the published SDK like
+any other program would.
+
+```bash
+mkdir ci-platform && cd ci-platform
+cat > go.mod << 'EOF'
+module github.com/ubx-blueprints/ci-platform
+
+go 1.23
+
+require (
+	github.com/ubiquex/ubx-sdk-go v0.5.0
+	github.com/ubiquex/ubx-sdk-aws-go v4.0.0
+)
+EOF
+```
+
+```go
+// queue.go
+package ciplatform
+
+import (
+	"github.com/ubiquex/ubx-sdk-aws-go/sqs"
+	sdk "github.com/ubiquex/ubx-sdk-go/runtime"
+)
+
+// Config is what a caller passes.
+type Config struct {
+	QueueName     string
+	RetentionDays *int
+}
+
+// Outputs is what callers can reference.
+type Outputs struct {
+	QueueURL *sdk.Computed
+	QueueARN *sdk.Computed
+}
+
+// CIPlatform provisions the pipeline's own event queue.
+func CIPlatform(cfg Config) Outputs {
+	retention := cfg.RetentionDays
+	if retention != nil {
+		seconds := *retention * 86400
+		retention = &seconds
+	}
+	q := sqs.NewQueue("pipeline-events", sqs.QueueConfig{
+		Name:                    cfg.QueueName,
+		MessageRetentionSeconds: retention,
+	})
+	return Outputs{QueueURL: q.Url, QueueARN: q.Arn}
+}
+```
+
+The whole authoring convention is one sentence: **a non-pointer field is
+required, a pointer field is optional.** `QueueName` is required.
+`RetentionDays` is optional, and when a caller leaves it out it is
+omitted from what reaches the provider entirely, rather than sent as
+null.
+
+That last part matters more than it looks. Some provider attributes are
+rejected outright rather than defaulted, so an unset optional arriving
+as `null` fails the whole apply. A pointer that stays nil never reaches
+the wire at all.
+
+<Note>
+  The same convention in the other two languages: TypeScript marks an
+  optional property with `?`, and Python writes `Optional[X] = None`.
+  A blueprint is written in one language, and `ubx` reads whichever one
+  it finds.
+</Note>
+
+## See what it became
+
+Before packaging anything, ask what the signature produced:
+
+```bash
+ubx blueprint describe .
+```
+
+```bash
+ci-platform (go, described by schema)
+
+entrypoint
+  import   github.com/ubx-blueprints/ci-platform
+  package  ciplatform
+  function CIPlatform(Config) Outputs
+
+params
+  queue_name               string         required  [QueueName]
+  retention_days           number         optional, default not derivable  [RetentionDays]
+
+outputs
+  queue_url                 [QueueURL]
+  queue_arn                 [QueueARN]
+```
+
+That ran without the AWS bindings installed. Reading a Go blueprint's
+signature parses declarations only, so `describe` and `package` both
+work on a tree whose dependencies were never fetched.
+
+Read the output carefully, because three things in it are the whole
+idea.
+
+**The parameter names are snake_case**, derived from your field names.
+`QueueName` becomes `queue_name`, which is what a caller writes. The
+identifier in brackets is the field as you actually spelled it, kept
+because it cannot be recovered from the other direction: `TargetARN`
+becomes `target_arn`, and converting that back gives `TargetArn`, which
+would not compile.
+
+**`default not derivable`** is not a failure. An optional parameter's
+default lives inside your function body, where reading it would mean
+running your code. `ubx` says so plainly rather than reporting a default
+it cannot know, so "no default shown" never gets confused with "the
+default is null".
+
+**Nothing was declared twice.** There is no file saying the blueprint
+takes a `queue_name`; there is a function taking a `QueueName`, and the
+description is read from it. The two cannot disagree.
+
+## Package it
+
+```bash
+ubx blueprint package . -o ci-platform.tar.gz
+```
+
+```bash
+packaged "ci-platform" -> ci-platform.tar.gz (3 file(s), content hash sha256:e1e3eae6d27847f2eb4ac6fc2c4c5f5d175709949d8f79d73c71c53ca0fab04a)
+```
+
+There is no build step. `package` derives the schema from your function,
+writes it beside the code as `blueprint.schema.json`, and includes it in
+the content hash. Run `package` again after editing the function and the
+schema is derived again, so a shipped blueprint cannot carry a
+description that has drifted from what it does.
+
+Everything after this point is the same as any other blueprint:
+`push` it to an OCI registry, `pull` it anywhere, `verify` the hash.
+
+## Call it
+
+Calling is unchanged, because a caller never sees which way the
+blueprint was written. It names a source and passes parameters:
+
+```hcl
+stack = "platform"
+
+blueprint "ci_platform" "events" {
+  source     = "./ci-platform"
+  queue_name = "pipeline-events"
+}
+```
+
+The full calling paths, from HCL, from SDK code, and from a hand-written
+intent file, are covered in the tutorials that follow this one. They
+work identically for both kinds of blueprint.
+
+## Outputs
+
+`Outputs` is a struct of `*sdk.Computed` values, each pointing at a real
+attribute of a real resource the blueprint created. A caller referencing
+`queue_arn` gets the resolved address of that attribute.
+
+Those addresses are resolved while the blueprint runs, not read from any
+declaration, because which attribute of which resource an output points
+at can depend on the blueprint's own branching. Your function can decide
+what to return, and the answer still reaches the caller.
+
+<Note>
+  A blueprint whose `Outputs` fields you never set is refused at the
+  call, naming the output that was left empty. Every declared output has
+  to be assigned a real attribute by the time the function returns.
+</Note>
+
+## What you just did
+
+You wrote a Go function and got a distributable, content-hashed,
+signable blueprint out of it. No Ubxfile, no pre-resolved resources
+document, no build step, and no generated code anywhere.
+
+The description that callers rely on was derived from the one thing that
+cannot lie about what your blueprint does: the function itself.
+
+## Next
+
+<Card title="Calling it from SDK code" icon="code" href="/tutorial/blueprints/call-sdk">
+  Import the blueprint and call it directly.
+</Card>
+
+<Card title="Calling blueprints with HCL" icon="file-code" href="/tutorial/blueprints/hcl-calling">
+  Compose calls in a plain file, with no SDK at all.
+</Card>

@@ -11,6 +11,7 @@ wasn't tampered with along the way.
 ## Usage
 
 ```bash
+ubx blueprint describe [dir] [--json]
 ubx blueprint build [dir] [--lang go|ts|py|all]
 ubx blueprint package <dir> -o <tarball>
 ubx blueprint push <tarball> --to oci://<registry>/<repo>:<tag>
@@ -19,6 +20,30 @@ ubx blueprint verify <dir>
 ```
 
 ## Examples
+
+Reading what a blueprint takes and returns, without building, packaging
+or running it:
+
+```bash
+ubx blueprint describe ci-platform
+```
+
+```bash
+ci-platform (go, described by schema)
+
+entrypoint
+  import   github.com/ubx-blueprints/ci-platform
+  package  ciplatform
+  function CIPlatform(Config) Outputs
+
+params
+  queue_name               string         required  [QueueName]
+  retention_days           number         optional, default not derivable  [RetentionDays]
+
+outputs
+  queue_url                 [QueueURL]
+  queue_arn                 [QueueARN]
+```
 
 Building a blueprint from its `Ubxfile`:
 
@@ -55,6 +80,15 @@ verified "ci-platform": content hash sha256:a1b2c3... matches (7 file(s))
 
 ## Flags
 
+### describe
+
+<ResponseField name="--json" type="boolean">
+  Print the derived schema as JSON, exactly as `ubx blueprint package`
+  would write it. Only meaningful for a blueprint written as code: an
+  Ubxfile blueprint has no derived schema, and `--json` says so rather
+  than inventing one.
+</ResponseField>
+
 ### build
 
 <ResponseField name="--lang" type="string">
@@ -85,6 +119,19 @@ verified "ci-platform": content hash sha256:a1b2c3... matches (7 file(s))
 
 ## Notes
 
+`describe` works on both kinds of blueprint. For one written as code it
+DERIVES the schema from the function's own signature, the same
+derivation `package` performs, rather than reading back a
+`blueprint.schema.json` a previous `package` wrote: the question is what
+the blueprint will become, not what it became last time. Deriving parses
+declarations only, so it works on a tree whose dependencies were never
+fetched. The bracketed name beside each param is the identifier as
+written in the source, which a caller constructing a config value needs
+and cannot recover from the snake_case name.
+
+`package` is where a code blueprint's schema is derived and written,
+before the content hash is computed, so the hash covers it.
+
 `build` parses the pre-resolved `resources:` document exactly once,
 regardless of how many languages `--lang` requests, every language
 compiles from the same parsed document -- nothing in `build` calls an
@@ -93,8 +140,8 @@ resolves four real source forms automatically: a local directory, a bare
 tarball file, a git repository, or an `oci://` reference, dest must not
 already exist. Authentication for OCI push/pull reuses your existing
 `docker login`/`oras login` credentials, this project never asks for a
-second login. These six subcommands are the whole real surface, there's
-no seventh for discovery, no `search`, no `list` against a registry. A
+second login. These subcommands are the whole real surface, there's
+none for discovery, no `search`, no `list` against a registry. A
 `pull` source is always a ref you already have in hand.
 
 ## See also
