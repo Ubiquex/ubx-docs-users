@@ -153,7 +153,24 @@ ubx scan --discover --tag team=payments --stack payments
 </ResponseField>
 
 <ResponseField name="--lookup" type="string" default="{}">
-  JSON object identifying the resource to the provider, for a single-resource scan.
+  JSON object identifying the resource to the provider, for a
+  single-resource scan.
+
+  The attributes vary by resource type, and are frequently not `id`. An
+  `aws_sqs_queue` is identified by its `queue_url`; an
+  `aws_sqs_queue_policy`, right next to it, really is identified by `id`.
+  There is no rule to learn here, so do not guess twice: if the shape is
+  wrong, the error names the attributes that provider expects and gives a
+  runnable `--lookup` to copy.
+
+  ```
+  aws_sqs_queue is identified by "queue_url" -- pass --lookup '{"queue_url":"<queue_url>"}'
+  ```
+
+  ubx can answer this for providers whose schema snapshot publishes an
+  identity map, which is every provider ubx ships its own schemas for. For
+  a Terraform-registry provider there is no such map, and the error falls
+  back to naming what it does know.
 </ResponseField>
 
 <ResponseField name="--source / --provider-version / --provider" type="string">
