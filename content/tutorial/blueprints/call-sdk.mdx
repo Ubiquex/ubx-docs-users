@@ -93,6 +93,14 @@ payments.aws_sqs_queue.pipeline-events: 1 proposal(s), newest first
 Permanent record of which blueprint, and which exact version, produced
 this resource.
 
+<Note>
+  The same line appears for a blueprint [written as
+  code](/tutorial/blueprints/as-code), which has no build step and no
+  generated wrapper. It does not have to say anything about itself:
+  `ubx` attributes each resource to the code that created it. Go needs
+  `ubx-sdk-go` v0.6.0 or later; TypeScript and Python need nothing.
+</Note>
+
 ## What you just did
 
 You called a real, compiled blueprint function, zero AI involved at

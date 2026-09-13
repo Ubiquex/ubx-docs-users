@@ -25,7 +25,7 @@ module github.com/ubx-blueprints/ci-platform
 go 1.23
 
 require (
-	github.com/ubiquex/ubx-sdk-go v0.5.0
+	github.com/ubiquex/ubx-sdk-go v0.6.0
 	github.com/ubiquex/ubx-sdk-aws-go v4.0.0
 )
 EOF
@@ -188,6 +188,46 @@ what to return, and the answer still reaches the caller.
   to be assigned a real attribute by the time the function returns.
 </Note>
 
+## Provenance, with nothing to write for it
+
+A resource your blueprint creates carries your blueprint's name and
+content hash, all the way into the ledger. You do not write anything to
+get that. `ubx` works out which code belongs to which blueprint before
+your program runs, and attributes each resource to the code that
+actually created it.
+
+It is visible from `ubx plan` onward:
+
+```bash
+  + aws_sqs_queue.pipeline-events create
+    source: blueprint ci-platform:sha256:e1e3eae6d278…
+      name: "pipeline-events"
+```
+
+and it is what `ubx why` reads back later:
+
+```bash
+    + aws_sqs_queue.pipeline-events create
+      source: blueprint ci-platform:sha256:e1e3eae6d278…
+```
+
+Not just *which blueprint*, but **which bytes**. The hash is the same
+one `package` printed, so two versions of a blueprint are never
+indistinguishable after the fact, which is the question a ledger exists
+to answer.
+
+A resource you write yourself, in the same stack, right beside the
+blueprint call, carries no blueprint source. The attribution follows the
+code that made each resource, not the program it happened to run in.
+
+<Note>
+  Go needs `ubx-sdk-go` v0.6.0 or later for this, which is what the
+  `go.mod` above requires. An older version still works and still plans
+  and ships; its resources simply carry no blueprint source. TypeScript
+  and Python need nothing: both are evaluated against the runtime your
+  `ubx` shipped with.
+</Note>
+
 ## What you just did
 
 You wrote a Go function and got a distributable, content-hashed,
@@ -195,7 +235,9 @@ signable blueprint out of it. No Ubxfile, no pre-resolved resources
 document, no build step, and no generated code anywhere.
 
 The description that callers rely on was derived from the one thing that
-cannot lie about what your blueprint does: the function itself.
+cannot lie about what your blueprint does: the function itself. So is
+the provenance: nothing in your blueprint claims authorship, and the
+ledger records it anyway.
 
 ## Next
 
