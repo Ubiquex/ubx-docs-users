@@ -23,21 +23,46 @@ ubx blueprint push ci-platform-v1.tar.gz \
 ```
 
 ```bash
-packaged "ci-platform" -> ci-platform-v1.tar.gz (7 file(s), content hash sha256:a1b2c3...)
-pushed "ci-platform" -> oci://ghcr.io/acme/ci-platform:v1 (7 file(s), content hash sha256:a1b2c3...)
+packaged ci-platform -> ci-platform-v1.tar.gz
+    content hash sha256:a1b2c3... · 7 file(s)
+pushed ci-platform -> oci://ghcr.io/acme/ci-platform:v1
+    1.4 MB in 2.2s
+    content hash sha256:a1b2c3... · 7 file(s)
 ```
 
 Anyone with registry access pulls it back down the same way, on any
-machine, and confirms nothing changed in transit:
+machine. A pull from a registry checks the content hash on arrival, so
+confirming nothing changed in transit is not a second step:
 
 ```bash
 ubx blueprint pull oci://ghcr.io/acme/ci-platform:v1 \
   ./ci-platform
+```
+
+```bash
+pulled oci://ghcr.io/acme/ci-platform:v1 -> ./ci-platform
+    1.4 MB in 2.1s
+    content hash sha256:a1b2c3... verified · 7 file(s)
+```
+
+That check is not the same as the one the registry already did. A
+registry verifies the blob's own digest, which proves the bytes arrived
+as it stored them. The content hash is the blueprint's own, computed
+from its files when it was packaged, and it is what says these are the
+bytes the author shipped.
+
+`ubx blueprint verify` remains the way to re-check a directory at any
+later time, and the only check available for the two delivery paths
+that have no registry behind them: a copied directory and a bare
+tarball.
+
+```bash
 ubx blueprint verify ./ci-platform
 ```
 
 ```bash
-verified "ci-platform": content hash sha256:a1b2c3... matches (7 file(s))
+verified ci-platform
+    content hash sha256:a1b2c3... matches · 7 file(s)
 ```
 
 ## Why a bespoke registry doesn't need to exist
