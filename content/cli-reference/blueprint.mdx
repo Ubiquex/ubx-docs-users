@@ -119,6 +119,27 @@ verified ci-platform
   Output tarball path. Required.
 </ResponseField>
 
+`package` never includes installed dependencies: `node_modules`,
+`vendor`, `venv`, `__pycache__`, and anything dot-prefixed such as
+`.git` or `.venv`. It names what it left out:
+
+```bash
+packaged ci-platform -> ci-platform-v1.tar.gz
+    excluded node_modules (installed dependencies, never blueprint content)
+    content hash sha256:a1b2c3... · 3 file(s)
+```
+
+They are installed artifacts rather than authored content, and a
+blueprint's content hash is its identity. Hashing a dependency tree
+would make that identity change every time anyone reinstalled, so
+`ubx blueprint verify` would fail on your own working tree after an
+ordinary `npm install`.
+
+Nothing reads them at evaluation time either. Deno resolves a bare npm
+specifier from the `node_modules` it finds next to the program being
+evaluated, not next to the blueprint, and the Go evaluator ignores
+`vendor/` outright.
+
 ### push
 
 <ResponseField name="--to" type="string">
