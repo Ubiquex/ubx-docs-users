@@ -1,7 +1,10 @@
 ---
-title: "ubx store gc"
-description: "Find and remove orphaned proposal objects left behind by an interrupted append."
+title: "ubx store"
+description: "Maintain a remote LedgerStore. Its one subcommand, gc, removes orphaned proposal objects left behind by an interrupted append."
 ---
+
+`ubx store` groups maintenance for a remote LedgerStore. It has one
+subcommand today, `gc`, documented below.
 
 A crash between writing a proposal object and advancing the ledger's
 CAS head leaves that object permanently unreferenced by any head/chain
