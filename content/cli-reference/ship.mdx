@@ -105,13 +105,50 @@ ubx ship 37b097a1d5e0 --confirm-destroys --yes
   Overall timeout for the run (default `5m0s`).
 </ResponseField>
 
+## When a resource comes back unverified
+
+Most failures are plain: the provider rejected something, ubx reads the
+resource back, confirms nothing changed, and records a failure you can
+fix and re-ship.
+
+A create is different, because there is nothing to read back yet. The
+attributes that identify a resource come from the result of the call
+that just failed, so if that call reached the provider and then failed,
+ubx genuinely does not know whether the resource was created. It says
+so rather than guessing:
+
+```bash
+  ! payments.aws_sqs_queue.events : encode new state: unknown type
+  ? payments.aws_sqs_queue.events : this resource may exist: the create call was made and its
+    outcome is unknown. Nothing is recorded for it, so a re-ship would create another. Check
+    the provider, and if it is there, adopt it with:
+    ubx scan --stack payments --type aws_sqs_queue --name events --lookup '<identifying attributes>'
+```
+
+The first line is the provider's own error, which says what went wrong.
+The second says what it means for the resource.
+
+Do not simply re-run `ship`. Check the provider first. If the resource
+is not there, re-ship normally. If it is, run the `ubx scan` command
+from the message: on an address the ledger has never seen, `scan`
+produces an adoption proposal, and shipping an adoption records the
+resource without calling the provider at all, so there is no second
+create. After that the resource is tracked normally and the original
+plan no longer tries to create it.
+
+`--lookup` takes the attributes that identify the resource to the
+provider, which vary by resource type: an `aws_sqs_queue` is identified
+by its `queue_url`, not an `id`. If you supply the wrong ones, the
+error names what it expected.
+
 ## Notes
 
 `ship` is safe to re-run. A resource that already shipped in a prior
 attempt is skipped, not re-attempted, and its real output is recovered
 from the ledger so any still-pending dependent can proceed correctly
 even after a crash mid-run. See [The Executor](/concepts/executor) for
-why a provider's own reported success is never trusted at face value.
+why neither a provider's reported success nor its reported failure is
+trusted at face value.
 
 ## See also
 

@@ -39,6 +39,16 @@ still fully existing. Recording that claim as fact, with no
 verification, would let the ledger quietly diverge from reality the
 moment any provider gets it wrong.
 
+The same is true of a reported failure, which is less obvious and cost
+more. A provider error tells you the call did not complete. It does not
+tell you nothing happened. A provider can create a resource and then
+fail while handling its own response, and a real one did: the queue
+existed in the cloud, the error looked like an ordinary rejection, and
+recording it as a definite failure meant ubx did not know the resource
+existed at all. Re-running would have created a second one.
+
+So ubx reads back after a failure too, not only after a success.
+
 ## What this actually looks like
 
 Re-running `ship` after a partial failure never re-attempts a resource
