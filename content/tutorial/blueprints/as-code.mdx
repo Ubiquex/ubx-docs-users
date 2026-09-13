@@ -94,20 +94,20 @@ ubx blueprint describe .
 ```
 
 ```bash
-ci-platform (go, described by schema)
+Blueprint  ci-platform · go · described by schema
 
-entrypoint
-  import   github.com/ubx-blueprints/ci-platform
-  package  ciplatform
-  function CIPlatform(Config) Outputs
+▸ entrypoint
+    import   github.com/ubx-blueprints/ci-platform
+    package  ciplatform
+    function CIPlatform(Config) Outputs
 
-params
-  queue_name               string         required  [QueueName]
-  retention_days           number         optional, default not derivable  [RetentionDays]
+▸ params · 2
+    queue_name               string         required  [QueueName]
+    retention_days           number         optional, default not derivable  [RetentionDays]
 
-outputs
-  queue_url                 [QueueURL]
-  queue_arn                 [QueueARN]
+▸ outputs · 2
+    queue_url                 [QueueURL]
+    queue_arn                 [QueueARN]
 ```
 
 That ran without the AWS bindings installed. Reading a Go blueprint's
@@ -141,7 +141,8 @@ ubx blueprint package . -o ci-platform.tar.gz
 ```
 
 ```bash
-packaged "ci-platform" -> ci-platform.tar.gz (3 file(s), content hash sha256:e1e3eae6d27847f2eb4ac6fc2c4c5f5d175709949d8f79d73c71c53ca0fab04a)
+packaged ci-platform -> ci-platform.tar.gz
+    content hash sha256:e1e3eae6d27847f2eb4ac6fc2c4c5f5d175709949d8f79d73c71c53ca0fab04a · 3 file(s)
 ```
 
 There is no build step. `package` derives the schema from your function,

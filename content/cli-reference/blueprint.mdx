@@ -29,20 +29,20 @@ ubx blueprint describe ci-platform
 ```
 
 ```bash
-ci-platform (go, described by schema)
+Blueprint  ci-platform · go · described by schema
 
-entrypoint
-  import   github.com/ubx-blueprints/ci-platform
-  package  ciplatform
-  function CIPlatform(Config) Outputs
+▸ entrypoint
+    import   github.com/ubx-blueprints/ci-platform
+    package  ciplatform
+    function CIPlatform(Config) Outputs
 
-params
-  queue_name               string         required  [QueueName]
-  retention_days           number         optional, default not derivable  [RetentionDays]
+▸ params · 2
+    queue_name               string         required  [QueueName]
+    retention_days           number         optional, default not derivable  [RetentionDays]
 
-outputs
-  queue_url                 [QueueURL]
-  queue_arn                 [QueueARN]
+▸ outputs · 2
+    queue_url                 [QueueURL]
+    queue_arn                 [QueueARN]
 ```
 
 Building a blueprint from its `Ubxfile`:
@@ -63,19 +63,37 @@ ubx blueprint push ci-platform-v1.tar.gz --to oci://ghcr.io/ubiquex/ci-platform:
 ```
 
 ```bash
-packaged "ci-platform" -> ci-platform-v1.tar.gz (7 file(s), content hash sha256:a1b2c3...)
-pushed "ci-platform" -> oci://ghcr.io/ubiquex/ci-platform:v1 (7 file(s), content hash sha256:a1b2c3...)
+packaged ci-platform -> ci-platform-v1.tar.gz
+    content hash sha256:a1b2c3... · 7 file(s)
+pushed ci-platform -> oci://ghcr.io/ubiquex/ci-platform:v1
+    1.4 MB in 2.2s
+    content hash sha256:a1b2c3... · 7 file(s)
 ```
 
-Pulling and verifying elsewhere:
+Pulling elsewhere. A pull from a registry verifies the content hash on
+arrival and says so, so `ubx blueprint verify` is not a required second
+step for this source:
 
 ```bash
 ubx blueprint pull oci://ghcr.io/ubiquex/ci-platform:v1 ./ci-platform
+```
+
+```bash
+pulled oci://ghcr.io/ubiquex/ci-platform:v1 -> ./ci-platform
+    1.4 MB in 2.1s
+    content hash sha256:a1b2c3... verified · 7 file(s)
+```
+
+Re-checking a directory later, which is also the only check available
+for a copied directory or a bare tarball:
+
+```bash
 ubx blueprint verify ./ci-platform
 ```
 
 ```bash
-verified "ci-platform": content hash sha256:a1b2c3... matches (7 file(s))
+verified ci-platform
+    content hash sha256:a1b2c3... matches · 7 file(s)
 ```
 
 ## Flags

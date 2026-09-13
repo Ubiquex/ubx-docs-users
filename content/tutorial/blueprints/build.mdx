@@ -98,8 +98,11 @@ ubx blueprint push ci-platform-v1.tar.gz \
 ```
 
 ```bash
-packaged "ci-platform" -> ci-platform-v1.tar.gz (1 file(s), content hash sha256:d4e5f6...)
-pushed "ci-platform" -> oci://ghcr.io/acme/ci-platform:v1 (1 file(s), content hash sha256:d4e5f6...)
+packaged ci-platform -> ci-platform-v1.tar.gz
+    content hash sha256:d4e5f6... · 1 file(s)
+pushed ci-platform -> oci://ghcr.io/acme/ci-platform:v1
+    38.2 KB in 0.9s
+    content hash sha256:d4e5f6... · 1 file(s)
 ```
 
 Anyone on your team, on a different machine entirely, pulls it back
@@ -112,7 +115,8 @@ ubx blueprint verify ./ci-platform
 ```
 
 ```bash
-verified "ci-platform": content hash sha256:d4e5f6... matches (1 file(s))
+verified ci-platform
+    content hash sha256:d4e5f6... matches · 1 file(s)
 ```
 
 `ubx blueprint pull` also resolves a plain git repository (`--ref`
