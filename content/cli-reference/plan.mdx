@@ -64,6 +64,20 @@ Plan  payments · from create_platform.go
   Root directory containing `ledger/` and `.ubx/`, also where the plan is saved (default `.`).
 </ResponseField>
 
+<ResponseField name="--update-lock" type="boolean" default="false">
+  Record whatever each declared blueprint resolves to in
+  `.ubx/blueprints.lock`, instead of refusing when it disagrees with
+  what is already locked.
+
+  The explicit way past a mismatch, and the only way. `ubx plan` refuses
+  a disagreement by default rather than rewriting the lock, because a
+  lock that quietly accepts different content records nothing.
+
+  Reach for it when you changed the declaration on purpose. When the
+  content moved under a declaration you did not change, find out why
+  first: see [Blueprint distribution](/concepts/blueprint-distribution).
+</ResponseField>
+
 <ResponseField name="--source / --provider-version / --provider" type="string">
   Same provider selection as `ubx ship`.
 </ResponseField>
