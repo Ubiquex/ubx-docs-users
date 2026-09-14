@@ -81,6 +81,33 @@ The same four source forms `ubx blueprint pull` accepts all work here:
 an `oci://` reference, a `git+https://` URL with an optional `@ref` and
 `#subdirectory=`, a `file://` path, or a bare local path.
 
+Your stack then imports it by name, in whichever language it is written
+in:
+
+```typescript
+import { ciPlatform } from "ci-platform";
+```
+
+```go
+import bp "github.com/acme/ci-platform"
+```
+
+```python
+from ci_platform import ci_platform
+```
+
+No relative path into a directory you pulled by hand, and nothing to
+keep in sync. ubx resolves the declaration, verifies it, and makes it
+importable before your program runs.
+
+**It does not edit your project's files to do that.** No entry appears
+in your `go.mod`, no `node_modules` directory is created, no `deno.json`
+is rewritten. Go gets the blueprint through a workspace ubx writes in
+its own build directory, TypeScript through an import map ubx generates
+and deletes, and Python through the interpreter's path. Those are files
+ubx owns, so nothing it does can be undone by an `npm install` or a
+`go mod tidy`, and nothing it leaves behind can surprise you later.
+
 `ubx plan` then records what that declaration actually resolved to, in
 `.ubx/blueprints.lock`:
 

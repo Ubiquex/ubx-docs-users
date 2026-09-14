@@ -121,7 +121,11 @@ verified ci-platform
 
 `ubx blueprint pull` also resolves a plain git repository (`--ref`
 picks a branch, tag, or commit) or a bare tarball file with no network
-at all, the same command either way. See
+at all, the same command either way.
+
+Pulling by hand is for looking at a blueprint, or for confirming one
+arrived intact. A stack that actually uses it should declare it in
+`.ubx/config` instead, and let ubx pull and verify it at plan time. See
 [Distributing a Blueprint](/concepts/blueprint-distribution) for the
 real registry model and why no bespoke Ubiquex-hosted registry was
 ever needed for this.
