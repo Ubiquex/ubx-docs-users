@@ -50,6 +50,43 @@ already declares. Patching an attribute the blueprint never exposed as
 a parameter at all is a different, separate mechanism, see
 [Overriding a Blueprint's Internals](/concepts/blueprint-overrides).
 
+## Once the blueprint is published, stop hand-wiring it
+
+The `require` and `replace` above are the right thing here, because the
+blueprint is a local directory you just built and are still changing.
+Go's own mechanics are doing exactly what they are for.
+
+For a blueprint that has been pushed to a registry, declare it instead
+and let ubx do the wiring:
+
+```hcl
+# .ubx/config.hcl
+blueprints = {
+  ciplatform = "oci://ghcr.io/acme/ci-platform:v1"
+}
+```
+
+The import stays the same. What goes away is the `require`, the
+`replace`, and having to pull the blueprint yourself before any of it
+works:
+
+```bash
+cat >> go.mod << 'EOF'   # no longer needed
+require ciplatform v0.0.0
+replace ciplatform => ../ci-platform/go
+EOF
+```
+
+ubx pulls the declared blueprint, verifies its content hash, and makes
+it importable before your program compiles. Your `go.mod` is not
+touched: the blueprint reaches the build through a workspace ubx writes
+in its own build directory, so a later `go mod tidy` has nothing of
+ubx's to undo.
+
+TypeScript and Python work the same way, through an import map and the
+interpreter path respectively. See
+[Distributing a Blueprint](/concepts/blueprint-distribution).
+
 ## Resolve and ship
 
 ```bash
