@@ -26,6 +26,35 @@ every stack on the same machine. A version pinned in your own config
 always resolves to the exact binary that version implies, never a
 substitute.
 
+## The two things a provider pin controls
+
+For providers ubx ships its own schemas for, there are two versions, and
+only one of them is yours to pin.
+
+**The schema snapshot version is yours**, and it behaves exactly as above.
+`version = "4.0.0"` resolves to 4.0.0, always. It is part of what gets
+reviewed and recorded when you accept a proposal, so it never moves under
+you.
+
+**The binary that reads that snapshot is not.** Every snapshot records
+which build of ubx's provider server produced it, and ubx runs the newest
+release compatible with that record rather than that exact build. It never
+crosses a major version.
+
+This matters when a bug is found in the server itself rather than in a
+schema. Without it, a fix cannot reach you until every published snapshot
+is regenerated and re-released, which is a version bump on work that
+changed no schema. Real example: a serialization bug that made a resource
+get created in the cloud and then fail on the way back was fixed and
+released within the hour, and could not have reached a single stack,
+because every published snapshot named an older build.
+
+If you need a byte-identical rebuild of an earlier run, set
+`UBX_PROVIDER_DYNAMIC_EXACT=1` and ubx runs precisely the build each
+snapshot records. Either way the exact binary that ran is recorded in the
+proposal, so `ubx why` can always tell you what produced a reading rather
+than leaving you to infer it.
+
 ## Why skipping verification would be a real risk
 
 A provider binary is a real, running executable with real access to
