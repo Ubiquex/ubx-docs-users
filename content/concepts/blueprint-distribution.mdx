@@ -221,6 +221,16 @@ there.
 by the blueprint's content hash, so you get this by packaging normally
 rather than by adopting anything.
 
+Before evaluating, ubx installs those dependencies into a directory of
+its own, beside the cached blueprint rather than inside it, and the
+blueprint is evaluated from there. Two consequences worth knowing:
+
+- Your own project is untouched. Your `node_modules`, your `package.json`
+  and your own dependency resolution all work exactly as before, whether
+  or not you use npm at all.
+- After the first plan, the blueprint's dependencies are on disk, so
+  later plans need no network for them.
+
 Before evaluating, ubx fetches those dependencies in a step of their own
 and checks them against that lock. Bytes that do not match are refused
 before your stack runs:
