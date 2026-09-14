@@ -136,6 +136,34 @@ and it is deliberately the last thing that message mentions.
 A stack with no lock file yet is not affected by any of this. The first
 `ubx plan` writes one, and enforcement starts once it exists.
 
+### What the lock buys, beyond a record
+
+Blueprints are cached locally by content hash, one directory per hash,
+never per name or tag. A tag is a pointer that can be repointed at any
+time, so it names storage for nobody. Your lock file is what resolves a
+tag to a content hash.
+
+That has a consequence worth knowing. A **locked** blueprint resolves
+from the cache without asking the registry anything, because "do I
+already have exactly this content" is a question your machine can answer
+by itself. An **unlocked** one cannot: nothing local can know what a tag
+points to now, so it is fetched every time.
+
+The cache used to be keyed on the declaration instead, and the way that
+failed is not the way anyone would guess. It did not overwrite one
+version with another. A cache hit checked the stored copy against its
+own manifest, which always succeeds, so the registry was never asked
+again: whichever version you pulled first stayed on your machine
+indefinitely, while a colleague pulling for the first time got the
+current one. Both machines verified successfully. Neither had any way to
+notice they disagreed.
+
+A wrong file you can find. A machine quietly a version behind, forever,
+diverging from everyone else's according to who pulled when, you cannot.
+
+`ubx blueprint list` shows what is cached, with the sources each entry
+came from.
+
 `requirements.txt` still works for Python stacks and is unchanged. If
 the same name appears in both, the `[blueprints]` table wins and says so.
 
