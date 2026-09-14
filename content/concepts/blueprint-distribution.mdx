@@ -65,6 +65,108 @@ verified ci-platform
     content hash sha256:a1b2c3... matches · 7 file(s)
 ```
 
+## Declaring a blueprint, and pinning what it resolved to
+
+Pulling by hand works, and for a stack you keep coming back to there is
+a better path. Declare the blueprint in `.ubx/config` and ubx pulls it
+for you, at plan time, before anything evaluates:
+
+```hcl
+blueprints = {
+  ci-platform = "oci://ghcr.io/acme/ci-platform:v1"
+}
+```
+
+The same four source forms `ubx blueprint pull` accepts all work here:
+an `oci://` reference, a `git+https://` URL with an optional `@ref` and
+`#subdirectory=`, a `file://` path, or a bare local path.
+
+`ubx plan` then records what that declaration actually resolved to, in
+`.ubx/blueprints.lock`:
+
+```json
+{
+  "schema_version": 1,
+  "stacks": {
+    "platform": {
+      "ci-platform": {
+        "source": "oci://ghcr.io/acme/ci-platform:v1",
+        "content_hash": "sha256:a1b2c3..."
+      }
+    }
+  }
+}
+```
+
+**Commit that file.** It is the only thing that lets a colleague, or CI,
+or you on a different machine, get the same blueprint you did. The
+declaration says where to look; the lock says what was found there.
+
+From then on `ubx plan` and `ubx resolve` check the blueprint against
+the lock and refuse if it disagrees, rather than quietly using something
+else. A tag like `:v1` can be repointed at any time, and that is the
+whole reason this exists.
+
+Two disagreements read differently, because they mean different things:
+
+```
+blueprint "ci-platform" in stack "platform" is locked to
+oci://ghcr.io/acme/ci-platform:v1 but is now declared as
+oci://ghcr.io/acme/ci-platform:v2 -- the declaration changed and
+blueprints.lock is behind; re-run with --update-lock to record the new source
+```
+
+That one is ordinary. You changed the declaration, and `ubx plan
+--update-lock` records the new one.
+
+The other is not:
+
+```
+blueprint "ci-platform" in stack "platform" resolved to sha256:9f8e7d...,
+but blueprints.lock locks it to sha256:a1b2c3..., from the same source
+oci://ghcr.io/acme/ci-platform:v1.
+The declaration did not change, so the content behind it did.
+```
+
+Nobody edited anything and the content moved anyway. Either the tag was
+repointed, or the registry is serving different bytes than it served
+before. Find out which before you accept it. `--update-lock` is there,
+and it is deliberately the last thing that message mentions.
+
+A stack with no lock file yet is not affected by any of this. The first
+`ubx plan` writes one, and enforcement starts once it exists.
+
+### What the lock buys, beyond a record
+
+Blueprints are cached locally by content hash, one directory per hash,
+never per name or tag. A tag is a pointer that can be repointed at any
+time, so it names storage for nobody. Your lock file is what resolves a
+tag to a content hash.
+
+That has a consequence worth knowing. A **locked** blueprint resolves
+from the cache without asking the registry anything, because "do I
+already have exactly this content" is a question your machine can answer
+by itself. An **unlocked** one cannot: nothing local can know what a tag
+points to now, so it is fetched every time.
+
+The cache used to be keyed on the declaration instead, and the way that
+failed is not the way anyone would guess. It did not overwrite one
+version with another. A cache hit checked the stored copy against its
+own manifest, which always succeeds, so the registry was never asked
+again: whichever version you pulled first stayed on your machine
+indefinitely, while a colleague pulling for the first time got the
+current one. Both machines verified successfully. Neither had any way to
+notice they disagreed.
+
+A wrong file you can find. A machine quietly a version behind, forever,
+diverging from everyone else's according to who pulled when, you cannot.
+
+`ubx blueprint list` shows what is cached, with the sources each entry
+came from.
+
+`requirements.txt` still works for Python stacks and is unchanged. If
+the same name appears in both, the `[blueprints]` table wins and says so.
+
 ## Why a bespoke registry doesn't need to exist
 
 A tarball pushed to an OCI registry is one manifest wrapping one blob
