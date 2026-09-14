@@ -159,6 +159,17 @@ packaged widget -> widget-v1.tar.gz
 ```
 
 <Warning>
+**Use `deno install`, not `npm install`, inside a blueprint.**
+
+`npm install` writes a `package-lock.json`. That is an ordinary file, so
+it becomes part of the blueprint's content and changes its hash, and
+`ubx blueprint verify` will then refuse it. `deno install` writes a
+`deno.lock` and a `node_modules`, and `node_modules` is excluded from the
+manifest, so the hash is unaffected. `verify` names this cause if you hit
+it.
+</Warning>
+
+<Warning>
 **This step needs network access, and `deno` on your `PATH`.** Packaging
 needed neither before. It applies only to a TypeScript blueprint that
 declares npm dependencies: every other blueprint, including every one
