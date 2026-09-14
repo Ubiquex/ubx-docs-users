@@ -188,8 +188,18 @@ notice they disagreed.
 A wrong file you can find. A machine quietly a version behind, forever,
 diverging from everyone else's according to who pulled when, you cannot.
 
-`ubx blueprint list` shows what is cached, with the sources each entry
-came from.
+`ubx blueprint list` shows what is cached, one row per source, with the
+hash each one resolved to:
+
+```bash
+NAME   TAG     HASH           SIZE    USED     SOURCE
+ts-bp  v0.1.0  sha256:4260e…  3.3 KB  35m old  oci://ghcr.io/ubx-blueprints/ts-bp
+ts-bp  v0.2.0  sha256:7805d…  4.0 KB  12m old  oci://ghcr.io/ubx-blueprints/ts-bp
+```
+
+Two tags resolving to the same bytes show as two rows sharing a hash and
+a source, differing only in the tag. That is what it is: one thing,
+reached two ways.
 
 `requirements.txt` still works for Python stacks and is unchanged. If
 the same name appears in both, the `[blueprints]` table wins and says so.

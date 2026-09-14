@@ -17,6 +17,7 @@ ubx blueprint package <dir> -o <tarball>
 ubx blueprint push <tarball> --to oci://<registry>/<repo>:<tag>
 ubx blueprint pull <source> <dest>
 ubx blueprint verify <dir>
+ubx blueprint list [--full-hashes]
 ```
 
 ## Examples
@@ -173,6 +174,36 @@ Commit it.
 install` does not write one: it writes `package-lock.json`, which deno
 does not read. Without this you would have had to run a Deno command
 inside a package you think of as an npm package.
+
+### list
+
+<ResponseField name="--full-hashes" type="boolean" default="false">
+  Render every hash in full instead of the default 12-character short
+  form.
+</ResponseField>
+
+`list` reports the local content-addressed cache (`~/.ubx/blueprints`),
+one row per source:
+
+```bash
+ubx blueprint list
+```
+
+```bash
+NAME   TAG     HASH           SIZE    USED     SOURCE
+ts-bp  v0.1.0  sha256:4260e…  3.3 KB  35m old  oci://ghcr.io/ubx-blueprints/ts-bp
+ts-bp  v0.2.0  sha256:7805d…  4.0 KB  12m old  oci://ghcr.io/ubx-blueprints/ts-bp
+
+2 blueprint(s) · 7.2 KB total
+```
+
+One row per **source**, not per hash, so a blueprint reached two ways
+appears twice. When two tags resolve to the same bytes, the rows differ
+only in the `TAG` column and share a hash: one thing, reached two ways.
+
+`SOURCE` omits the tag, since the tag has its own column. On a narrow
+terminal a long source is elided from the middle, so the scheme and the
+blueprint's own name always survive: `oci://ghcr.i…ci-platform`.
 
 ### push
 
