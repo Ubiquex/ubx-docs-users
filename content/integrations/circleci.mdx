@@ -14,7 +14,7 @@ assumed to mirror any of the four platforms already covered.
 
 <Note>
   This covers scheduled, pull-request-triggered, and merge-triggered
-  automation only -- `ubx-agent` (UBI-28, parked) exists for the case
+  automation only -- `ubx-agent` (parked) exists for the case
   this structurally can't cover: tight detection latency and an
   event-driven loop, not a cron tick or a merge hook. Nothing here is
   a substitute for that, it's what's real today.
@@ -271,7 +271,7 @@ what determines whether a failure alert goes out. As with the other
 platforms, no custom step or webhook is required inside the job itself
 to get a real alert out of a properly configured preference, and no
 automatic PR or receipt gets posted anywhere -- that's `ubx-agent`'s
-job (UBI-28), not this pipeline's.
+job, not this pipeline's.
 
 ## Workflow 2: plan on pull request
 

@@ -71,7 +71,7 @@ platform's own API base, it has **no default at all**: Bitbucket Server is self-
 single fixed host the way `gitlab.com`/`dev.azure.com` each are (confirmed directly against
 `bitbucketserver.Client`'s own doc comment) -- always required for Bitbucket Server support.
 
-## Self-hosted instances (UBI-171)
+## Self-hosted instances
 
 Three of the five platforms `ubx server` supports have a real self-hosted product on a host of your
 own choosing. Each has one real setting for it, and that one setting drives **both** the API calls
@@ -93,7 +93,7 @@ its own always-required `bitbucket_server_url`, and [Bitbucket
 Cloud](/server/bitbucket-setup#bitbucket-cloud) is SaaS-only with one fixed host.
 
 <Warning>
-  Before UBI-171 (2026-08-15), the GitHub and Azure DevOps settings existed but were labeled
+  Before 2026-08-15, the GitHub and Azure DevOps settings existed but were labeled
   test-only, and **neither platform actually worked against a self-hosted instance**. Two real
   defects, both fixed:
 
@@ -122,7 +122,7 @@ its git remotes across two hosts, and no self-hosted product does.
 
 **GitLab (self-managed).** Give it the instance URL. GitLab's own client appends its `api/v4/` path,
 and clones go to `https://gitlab.example.com/{namespace}/{project}.git`. This one already worked
-before UBI-171; it gained a YAML key for consistency.
+before 2026-08-15; it gained a YAML key for consistency.
 
 **Azure DevOps Server (on-prem).** Give it the **collection** URL, including any virtual directory:
 `https://azuredevops.example.com/tfs/DefaultCollection`. The collection plays exactly the role the
@@ -150,7 +150,7 @@ a full substitute for the list. An entry with no `platform` key defaults to `"gi
 backward compatibility for every config written before GitLab/Azure DevOps/Bitbucket Server support
 existed.
 
-## `repos` is a real, enforced allowlist (UBI-166)
+## `repos` is a real, enforced allowlist
 
 **Every webhook-triggered action -- plan, re-plan, approval-derived acceptance, ship, whether
 automatic or via comment -- refuses outright unless the event's own repository is explicitly
@@ -164,7 +164,7 @@ that can reach every repository it has permissions on, with no narrower per-repo
 an unintended repository from triggering automation.
 
 <Warning>
-  Before UBI-166 (fixed 2026-08-15), an unlisted repository was never refused -- it silently
+  Before 2026-08-15, an unlisted repository was never refused -- it silently
   defaulted to `ledger_dir "."` and ran anyway. If you deployed `ubx server` before this fix,
   re-check your own `repos` list names every real repository you intend to watch; anything missing
   now refuses instead of silently running at the repo root.
@@ -174,7 +174,7 @@ A refusal is never silent: `ubx server` logs a real, structured `ERROR`-level li
 platform, the repository, and the event -- for example:
 
 ```
-ERROR ubx server: refusing pull_request event -- repository not in Config.Repos allowlist (UBI-166) platform=github repo=acme/unlisted-repo action=opened pr=1
+ERROR ubx server: refusing pull_request event -- repository not in Config.Repos allowlist platform=github repo=acme/unlisted-repo action=opened pr=1
 ```
 
 No comment is posted back to an unlisted repository itself (there's nothing to say to a repo that
@@ -182,7 +182,7 @@ was never opted into this server's own automation at all) -- the refusal is loud
 operator's own logs, watch them for exactly this line if a webhook you expected to trigger
 automation appears to do nothing.
 
-## Stack locations are auto-discovered, never declared here (UBI-167)
+## Stack locations are auto-discovered, never declared here
 
 `repos` entries carry **repository identity only**. There is no `ledger_dir` key, and no path of any
 kind, anywhere in `ubx server`'s own configuration.
@@ -196,12 +196,12 @@ event's own real commit and discovers every directory in it that actually contai
 and nothing has to be kept in sync by hand when a repository adds, moves, or removes a stack.
 
 <Warning>
-  Before UBI-167 (2026-08-15), each `repos` entry declared its own `ledger_dir`. That key is gone.
+  Before 2026-08-15, each `repos` entry declared its own `ledger_dir`. That key is gone.
   `ubx server` now **refuses to start** if a config file still declares it, rather than silently
   ignoring it and resolving paths a different way than the file says:
 
   ```
-  server: config file /etc/ubx-server/ubx-server.yaml: repos[1] declares ledger_dir "stacks/payments", which ubx server no longer accepts (UBI-167) -- a stack's location is auto-discovered from the repository's own .ubx/config now, so remove the key; repos entries carry repository identity only
+  server: config file /etc/ubx-server/ubx-server.yaml: repos[1] declares ledger_dir "stacks/payments", which ubx server no longer accepts -- a stack's location is auto-discovered from the repository's own .ubx/config now, so remove the key; repos entries carry repository identity only
   ```
 
   Delete the `ledger_dir` keys (and any `:ledger_dir` suffix on a `--repo` value, which is refused
@@ -220,7 +220,7 @@ already uses elsewhere) -- refusing outright, loudly logged, if the changed file
 than one equally-specific stack at once, rather than guessing:
 
 ```
-ERROR ubx server: refusing event -- cannot resolve to exactly one discovered stack (UBI-167) platform=github repo=acme/infra pr=42 event=pull_request:opened error="this event's own changed files do not resolve to exactly one discovered stack: this event's own changed files touch 2 equally-specific discovered stacks at once"
+ERROR ubx server: refusing event -- cannot resolve to exactly one discovered stack platform=github repo=acme/infra pr=42 event=pull_request:opened error="this event's own changed files do not resolve to exactly one discovered stack: this event's own changed files touch 2 equally-specific discovered stacks at once"
 ```
 
 Unlike an unlisted repository, this one **is** allowlisted, so the same refusal is also posted back
@@ -308,7 +308,7 @@ ubx server --repo acme/infra --repo acme/payments-infra \
 ```
 
 Repository identity only, exactly like a YAML `repos` entry -- no path component (a leftover
-`:ledger_dir` suffix is refused by name, see the UBI-167 warning above). `owner/name` is the GitHub
+`:ledger_dir` suffix is refused by name, see the warning above). `owner/name` is the GitHub
 shorthand. A real `gitlab:` prefix selects the GitLab shorthand instead --
 `gitlab:namespace/project` -- the project path kept as one whole, opaque string (never split into
 separate fields) since a real GitLab project can be nested under any number of real
