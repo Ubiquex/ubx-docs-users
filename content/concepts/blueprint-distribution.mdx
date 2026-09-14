@@ -194,6 +194,77 @@ came from.
 `requirements.txt` still works for Python stacks and is unchanged. If
 the same name appears in both, the `[blueprints]` table wins and says so.
 
+## When a blueprint has dependencies of its own
+
+A blueprint is code, so it can import things. What happens depends on
+where those things come from, and the rule is the same whichever file
+declared them.
+
+**Something inside the blueprint** always works, with no network and no
+ceremony. A relative path in `deno.json`, or a `file:` dependency in
+`package.json` pointing at a directory inside the blueprint, is resolved
+directly. The target travelled with the blueprint, so it is already
+there.
+
+**An npm package** works, on one condition: the blueprint has to pin it.
+`ubx blueprint package` writes that pin for you, as a `deno.lock` covered
+by the blueprint's content hash, so you get this by packaging normally
+rather than by adopting anything.
+
+Before evaluating, ubx fetches those dependencies in a step of their own
+and checks them against that lock. Bytes that do not match are refused
+before your stack runs:
+
+```bash
+blueprint "widget": fetching its npm dependencies failed: exit status 1
+    Tarball checksum did not match what was provided by npm registry for left-pad@1.3.0.
+```
+
+A blueprint packaged before this existed ships no lock, and is refused
+with the command that fixes it:
+
+```bash
+blueprint "widget" declares 1 npm dependency(ies) and ships no deno.lock,
+so nothing pins what would be fetched:
+    left-pad -> npm:left-pad@1.3.0 (in package.json)
+  `ubx blueprint package` generates this lock, so re-packaging the
+  blueprint is the fix.
+```
+
+**A JSR package does not work**, even from a blueprint that pins it.
+
+<Warning>
+This is worth knowing before you plan around it, because the published
+Ubiquex TypeScript SDK is on JSR.
+
+Evaluation runs deno with `--no-remote`, the flag that stops an evaluated
+program loading code from a URL at runtime. It does not block npm, but
+resolving a JSR package fetches `https://jsr.io/<pkg>/meta.json`, which
+that flag blocks even when the package is already cached. A lock does not
+help, because the problem is not that the graph is unpinned.
+
+Publishing the same code to npm, or vendoring it into the blueprint, are
+the two paths that work today.
+</Warning>
+
+Direct `https://` and git imports are refused for the same reason.
+
+### What this does and does not pin
+
+The **blueprint's** dependencies become pinned: what it declared, your
+machine verified against its lock before anything ran.
+
+Your **stack's own** dependencies are unchanged. They are still resolved
+by deno against your own `deno.lock`, exactly as before, and evaluation
+still reaches the network for them. The boundary is not that `ubx plan`
+stops using the network. It is that a blueprint you did not write cannot
+pull in code nobody pinned.
+
+One thing that did change for the better: `ubx plan` no longer rewrites
+your `deno.lock`. deno updates a project's lock as a side effect of
+running, so evaluating a stack used to leave a diff in a file you own.
+ubx now points deno at a copy.
+
 ## Why a bespoke registry doesn't need to exist
 
 A tarball pushed to an OCI registry is one manifest wrapping one blob

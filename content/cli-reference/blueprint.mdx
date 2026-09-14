@@ -135,10 +135,44 @@ would make that identity change every time anyone reinstalled, so
 `ubx blueprint verify` would fail on your own working tree after an
 ordinary `npm install`.
 
-Nothing reads them at evaluation time either. Deno resolves a bare npm
-specifier from the `node_modules` it finds next to the program being
-evaluated, not next to the blueprint, and the Go evaluator ignores
+Nothing reads them at evaluation time either. A blueprint's own npm
+dependencies reach evaluation through its `deno.lock` and deno's cache
+rather than through a `node_modules` tree, and the Go evaluator ignores
 `vendor/` outright.
+
+#### Generating a blueprint's npm lock
+
+For a TypeScript blueprint that declares npm dependencies, `package`
+resolves them and writes a `deno.lock` into the directory before hashing
+it, so the lock is part of the blueprint's content:
+
+```bash
+ubx blueprint package . -o widget-v1.tar.gz
+```
+
+```bash
+    resolving npm dependencies to generate deno.lock (needs network)
+packaged widget -> widget-v1.tar.gz
+    generated deno.lock (pins this blueprint's npm dependencies for consumers -- commit it)
+    content hash sha256:57df4e... · 4 file(s)
+```
+
+<Warning>
+**This step needs network access, and `deno` on your `PATH`.** Packaging
+needed neither before. It applies only to a TypeScript blueprint that
+declares npm dependencies: every other blueprint, including every one
+`ubx blueprint build` generates, still packages entirely offline.
+</Warning>
+
+The lock exists so that whoever consumes the blueprint gets the same
+bytes you resolved. It travels under the content hash like every other
+file, so it cannot be swapped without changing the blueprint's identity.
+Commit it.
+
+`package` generates it rather than expecting you to, because `npm
+install` does not write one: it writes `package-lock.json`, which deno
+does not read. Without this you would have had to run a Deno command
+inside a package you think of as an npm package.
 
 ### push
 
