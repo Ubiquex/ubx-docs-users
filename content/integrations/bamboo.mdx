@@ -17,7 +17,7 @@ per job.
 
 <Note>
   This covers scheduled, pull-request-triggered, and merge-triggered
-  automation only -- `ubx-agent` (UBI-28, parked) exists for the case
+  automation only -- `ubx-agent` (parked) exists for the case
   this structurally can't cover: tight detection latency and an
   event-driven loop, not a cron tick or a merge hook. Nothing here is
   a substitute for that, it's what's real today.
@@ -224,7 +224,7 @@ recipient (email or group) is the real, workable choice, configured
 for the "Failed Builds" event. As with the other platforms, no custom
 script step is required to get an alert out of a *configured*
 subscription, and no automatic PR or receipt gets posted anywhere --
-that's `ubx-agent`'s job (UBI-28), not this plan's.
+that's `ubx-agent`'s job, not this plan's.
 
 ## Workflow 2: plan on pull request
 

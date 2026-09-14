@@ -21,7 +21,7 @@ the ledger, and ship-on-merge never runs on a schedule or a PR event.
   This covers scheduled, pull-request-triggered, and merge-triggered
   automation only -- the shapes any CI platform can run without a
   long-lived process.
-  `ubx-agent` (UBI-28, parked) exists for the case this structurally
+  `ubx-agent` (parked) exists for the case this structurally
   can't cover: tight detection latency and an event-driven loop, not a
   cron tick or a merge hook. Nothing here is a substitute for that,
   it's what's real today.
@@ -151,7 +151,7 @@ notification settings (Settings → Notifications, with an explicit
 "only notify on failure" option). No custom notification step, no
 webhook, no Slack integration required to get a real alert out of this
 -- and no automatic PR or receipt gets posted anywhere either; that's
-`ubx-agent`'s job (UBI-28), not this workflow's.
+`ubx-agent`'s job, not this workflow's.
 
 ```yaml
 name: Nightly drift watch

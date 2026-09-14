@@ -14,7 +14,7 @@ assumed to mirror GitHub's.
 
 <Note>
   This covers scheduled, merge-request-triggered, and merge-triggered
-  automation only -- `ubx-agent` (UBI-28, parked) exists for the case
+  automation only -- `ubx-agent` (parked) exists for the case
   this structurally
   can't cover: tight detection latency and an event-driven loop, not a
   cron tick or a merge hook. Nothing here is a substitute for that,
@@ -228,7 +228,7 @@ configures their own notification level (Profile → Notifications),
 including a failure-only option. As with GitHub, no custom
 notification step or webhook is required to get a real alert out of
 this, and no automatic PR or receipt gets posted anywhere -- that's
-`ubx-agent`'s job (UBI-28), not this pipeline's.
+`ubx-agent`'s job, not this pipeline's.
 
 ## Workflow 2: plan on merge request
 

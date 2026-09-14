@@ -12,7 +12,7 @@ order: 1
 [CI/CD integration](/integrations/github-actions) already exercises, but as a continuously-running
 daemon reacting to webhook events, not a job that runs once per push and exits.
 
-Real, current scope, final (UBI-28): **GitHub**, as a real, installable GitHub App; **GitLab**, as
+Real, current scope, final: **GitHub**, as a real, installable GitHub App; **GitLab**, as
 a real Group Access Token plus a separately-configured webhook signing token -- GitLab has no
 unified "App" concept the way GitHub does, confirmed directly against GitLab's own current docs;
 **Azure DevOps**, as a real Personal Access Token plus a real, static shared-secret Service Hooks
@@ -21,13 +21,13 @@ scheme at all, confirmed directly against Microsoft's own current docs; and **Bi
 Server/Data Center**, as a real HTTP access token plus Bitbucket Server's own real, bundled
 HMAC-SHA256 webhook signature, native and bundled since version 5.4 with no plugin required,
 mirroring [`ubx accept --from-merge`](/cli-reference/accept)'s own earlier VCS-pairing finding; and
-**Bitbucket Cloud** (UBI-170), as a real access token plus its own HMAC `X-Hub-Signature` webhook
+**Bitbucket Cloud**, as a real access token plus its own HMAC `X-Hub-Signature` webhook
 signature. Bitbucket Cloud is a genuinely different platform from Bitbucket Server, not a hosted
 variant of it: a different auth model, completely different event keys, and no username on an
 account at all.
 
 <Note>
-  **Drift-watch (core-flow step 6 below) works on all five platforms since UBI-165.** It used to
+  **Drift-watch (core-flow step 6 below) works on all five platforms since 2026-08-15.** It used to
   work on none of them: the loop shelled out to `ubx status --drift --surface-as ...`, and
   `ubx status` has no `--surface-as` flag and never had one, so every sweep died on `unknown flag`
   before reaching any API. The surfacing machinery itself was also GitHub-only. Both are fixed, and
@@ -56,7 +56,7 @@ happy with Actions-only automation have no real reason to add this; teams watchi
 wanting drift-watch tighter than a nightly cron tick, are the real audience.
 
 <Note>
-  This still isn't `ubx-agent` (UBI-28, parked before this rewrite) -- even continuous drift-watch
+  This still isn't `ubx-agent` (parked before this rewrite) -- even continuous drift-watch
   here is a polling loop with a real, configured interval, not an event-driven reaction to a live
   cloud-side change the instant it happens. Nothing here closes that latency gap; it's a real,
   separate, still-unbuilt capability.
