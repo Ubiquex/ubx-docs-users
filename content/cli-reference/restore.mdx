@@ -115,6 +115,32 @@ shape came from without claiming the result is identical to that head.
 The ledger stays append-only: restoring does not rewrite or remove
 anything, it adds a proposal that moves live state back.
 
+### Blueprint-declared resources keep their provenance
+
+A resource that came from a blueprint is restored with the blueprint
+reference and declaration the target head recorded, not the one your
+`blueprints` table names today. Provenance and configuration are read
+from the same head, so what `ubx why` reports afterwards describes the
+same moment the restored shape does.
+
+Restoring to a head where a blueprint was at `v1` therefore records `v1`,
+even if your table has since moved to `v2`.
+
+A resource the target head recorded with no declaration is restored with
+none. That is a real answer rather than a missing one, and restore does
+not invent one.
+
+<Note>
+Earlier versions of `ubx` restored the shape without the provenance,
+which recorded the resource as though nothing declared it. If you ran
+`ubx restore` against a stack with blueprint-declared resources before
+this, `ubx why` will show no blueprint for the resources that restore
+touched. The ledger is intact and verifies normally; only the
+declaration record for those resources was lost, and it cannot be
+recovered from the ledger. Re-running a restore on the current version
+records it correctly from then on.
+</Note>
+
 ## See also
 
 - [`ubx alias`](/cli-reference/alias)
