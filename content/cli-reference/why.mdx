@@ -130,6 +130,45 @@ content hash, and notes honestly that only the calling stack's own
 acceptance is a real signature today, a blueprint's own authorship has
 no separate signing ceremony yet.
 
+### Which blueprint, and what asked for it
+
+The content hash says which bytes produced a resource. A second line says
+what asked for them, which is usually the question you actually have:
+
+```console
+$ ubx why payments.aws_sqs_queue.notifications
+    + aws_sqs_queue.notifications create
+      source: blueprint ci-platform:sha256:9f2a1c7b4e8d…
+        declared as git+https://github.com/ubiquex/bps.git#ref=v2.1.0&path=ci
+```
+
+A blueprint your stack declares shows `declared as`, followed by the
+declaration exactly as written in your `blueprints` table. A call that
+names its source inline has no table entry, so it reads differently:
+
+```console
+      source: blueprint ci-platform:sha256:aaaabbbbcccc…
+        called directly: ./blueprints/ci-platform
+```
+
+Where a declaration does not itself spell out the git ref or the
+subdirectory, they are shown alongside it (`at v2.1.0, path ci`). Where
+the declaration already contains them, they are not repeated.
+
+Proposals resolved by an older `ubx` say so explicitly:
+
+```console
+        (no declaration recorded -- resolved before ubx recorded one)
+```
+
+That line means the record predates this feature, not that the resource
+had no declaration. Existing ledgers are unaffected and keep verifying;
+new proposals record it from now on.
+
+Because it is recorded in the ledger, this answer survives a
+`blueprints.lock` that has since moved on, and it works on a ledger
+inspected without the repository it came from.
+
 The pin chain section renders only when the proposal itself recorded a
 real cross-stack pin, silent otherwise, and only ever adds information,
 it never changes whether `ubx why` (or anything else) succeeds. An
