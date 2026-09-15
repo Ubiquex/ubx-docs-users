@@ -57,6 +57,73 @@ ceremony: the file says what gets called and with what values, nothing
 more, and a parser produces the same result every time, deterministic
 by construction, not by convention.
 
+## What gets pinned, and why a path is different
+
+A blueprint you call from a **remote** source, an `oci://` artifact or a
+git URL, is recorded in `.ubx/blueprints.lock` the first time you plan,
+and served from that recorded content afterwards:
+
+```json
+{
+  "stacks": {
+    "platform": {
+      "ci-platform": {
+        "source": "oci://ghcr.io/acme/ci-platform:v1",
+        "content_hash": "sha256:a1b2c3..."
+      }
+    }
+  }
+}
+```
+
+If that tag is repointed, you keep getting what you locked. `ubx plan
+--update-lock` is how you take the new content, deliberately.
+
+A blueprint you call by **local path** is not locked, and that is not an
+oversight.
+
+The lock exists because a **reference** can be repointed underneath you.
+A tag is a name someone else can move; a branch advances; a registry can
+serve different bytes tomorrow. A path is not a reference to anything
+that can move. It names a directory, and whatever is in that directory
+is what you are calling.
+
+The practical half matters too. A blueprint you call by relative path is
+usually one you are editing, in the same repository, in the same change.
+Locking it would mean every edit produced a refusal telling you to pass
+`--update-lock`, which is friction with nothing on the other side of it.
+
+So:
+
+| source | pinned in the lock | needs `ubx blueprint package` |
+| -- | -- | -- |
+| `oci://ghcr.io/acme/bp:v1` | yes | yes |
+| `https://github.com/acme/bp.git` | yes | yes |
+| `../blueprints/postgres` | no | no |
+
+<Warning>
+**A blueprint fetched from a git URL now has to be packaged**, where
+previously it did not. Anything ubx fetches is verified against the
+manifest `ubx blueprint package` writes, which is how a content hash
+means something rather than being recomputed from whatever arrived.
+
+Run `ubx blueprint package` in the blueprint and commit what it writes.
+A blueprint called by local path is unaffected.
+</Warning>
+
+## A called blueprint's own dependencies
+
+A blueprint you call can have dependencies of its own, and they are
+resolved the same way they are for a blueprint a stack declares: read
+from the blueprint's own `deno.json`, `package.json` or `go.mod`, pinned
+by the `deno.lock` or `go.sum` it ships, and fetched before evaluation
+rather than during it.
+
+One gap worth knowing rather than discovering: a **Python** blueprint's
+own third-party dependencies are not resolved, from any calling path.
+That is a limitation of how Python dependencies work rather than of HCL,
+and it applies equally to a blueprint a stack declares.
+
 ## The one thing it can't do
 
 You can reference a sibling blueprint call's own declared output:
