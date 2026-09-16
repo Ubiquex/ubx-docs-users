@@ -111,6 +111,39 @@ hash, never a name you choose. `ubx ship <hash>` (or any unique prefix
 of it) looks there directly. This file is a draft, not a ledger entry,
 it carries no weight until something actually accepts or ships it.
 
+### When a plan would change something that was set deliberately
+
+Most of what you declare, `ubx` moves toward. A few things move away from
+it on purpose: [`ubx restore`](/cli-reference/restore) puts a resource
+back to an earlier head, and accepting a drift revert puts one back to
+what the ledger already believed.
+
+Afterwards your declaration and your ledger disagree by design, and the
+next plan has no way to know that. It reads your declaration, sees live
+state differs, and proposes changing it back. So a restore you shipped on
+purpose can be undone by the next routine plan, in a diff that looks
+entirely ordinary.
+
+The plan now says so:
+
+```console
+  1 resource here was last changed deliberately, away from what your declaration says:
+    payments.fake_widget.a  restore to head ce86e3e6cc53… (2026-09-16T14:45:38Z)
+
+  This plan changes it again. If that is what you want, nothing here is wrong.
+  If it is not, the declaration it is compared against is what to change.
+```
+
+It reports a fact and leaves the decision to you. It does not claim the
+plan would undo the restore, because that is not always true: changing one
+attribute of a restored resource is not necessarily reversing anything.
+Moving forward again after a restore is a normal thing to do.
+
+Nothing appears for an ordinary plan. A resource only counts while the
+deliberate change is still what it holds: once an ordinary change lands on
+top, the note stops, and an accepted-but-unshipped restore never triggers
+it because it has not set anything yet.
+
 ## See also
 
 - [The Proposal](/concepts/proposal)
