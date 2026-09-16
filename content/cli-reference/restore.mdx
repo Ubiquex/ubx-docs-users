@@ -115,6 +115,48 @@ shape came from without claiming the result is identical to that head.
 The ledger stays append-only: restoring does not rewrite or remove
 anything, it adds a proposal that moves live state back.
 
+### The receipt tells you what your blueprints table would have to say
+
+A restore rebuilds recorded configuration. It does not re-run blueprints
+and does not read your `blueprints` table. So if your table has moved on
+since the head you restored to, the restore is correct and your **next**
+`ubx plan` proposes moving everything back.
+
+The receipt compares the two and says where they differ:
+
+```console
+blueprints: your table does not match what this head used
+  ci-platform  table says oci://ghcr.io/ubx-blueprints/ci-platform:v2, this head used oci://ghcr.io/ubx-blueprints/ci-platform:v1
+  network      this head used oci://ghcr.io/ubx-blueprints/network:v1, your table has no entry
+  legacy-vpc   your table declares it, this head never used it
+```
+
+Three kinds of difference: an entry whose declaration moved, an entry the
+head used that your table no longer has, and an entry your table has that
+the head never used. A blueprint you dropped and are now restoring shows
+up as the second kind, and needs an entry added back rather than a version
+changed.
+
+Nothing is edited for you. Your `blueprints` table can be spread across a
+cascade of config files, and while `ubx` knows which file supplies an entry
+that already exists, there is no such answer for one that does not. Adding
+a dropped blueprint back is a choice about which file should own it, so it
+is left to you.
+
+<Warning>
+Matching every line does not guarantee your next plan agrees with the
+restored head. The ledger records what a blueprint call produced, never
+the arguments it was called with, so the same blueprint at the same
+version can still produce a different plan if the arguments changed. The
+receipt states this each time, including when everything matches, because
+that is when it is the only remaining explanation.
+</Warning>
+
+If a resource was resolved by a version of `ubx` from before declarations
+were recorded, the receipt says so for that entry rather than counting it
+as a match. A content hash names bytes and cannot be turned back into a
+source, so those entries are unchecked rather than confirmed correct.
+
 ### Blueprint-declared resources keep their provenance
 
 A resource that came from a blueprint is restored with the blueprint
