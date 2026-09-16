@@ -1,0 +1,126 @@
+---
+title: "Sensitive Parameters"
+description: "Mark a parameter that carries a credential, so its value is never written into the ledger."
+---
+
+`ubx` records what a blueprint call was made with, so months later
+`ubx why` can tell you not just which blueprint produced a resource but
+what it was given. That is what makes "the version is right and the plan
+still differs" answerable.
+
+It is also a problem if one of those arguments is a token. The ledger is
+append-only and every entry is hashed and signed, so a value written
+there is written permanently. There is no editing it out afterwards.
+
+So a parameter can say that its argument is a credential, and `ubx`
+records the fact that it was given without recording what it was.
+
+## Declaring one
+
+In an `Ubxfile`, `sensitive` is a trailing clause:
+
+```yaml
+params:
+  queue_name: string, required
+  api_token: string, required, sensitive
+```
+
+It adds to `required` rather than replacing it, so a parameter still says
+whether it must be given.
+
+## A sensitive parameter cannot have a default
+
+This is refused when you package the blueprint:
+
+```console
+$ ubx blueprint package .
+blueprint: Ubxfile: params.api_token: a sensitive param cannot have a
+default: the Ubxfile ships inside the packaged blueprint, so the default
+would be distributed to everyone who pulls it -- declare it
+"string, required, sensitive"
+```
+
+If you hit this, the fix is to make the parameter `required` and have
+callers pass the value.
+
+The reason is worth understanding rather than working around. Your
+`Ubxfile` is packaged **into** the blueprint artifact. A default written
+there travels with it, so a sensitive default hands the credential to
+everyone who pulls the blueprint. That leaks without anyone running
+anything, which is worse than the case the flag exists to prevent, so it
+is a refusal rather than a warning.
+
+## In a blueprint written as code
+
+A code blueprint marks a parameter using its own language's metadata,
+which means the value's type does not change and your blueprint code
+still receives an ordinary string.
+
+```go
+type Config struct {
+	RepoName string
+	APIToken string `ubx:"sensitive"`
+}
+```
+
+```python
+@dataclass
+class Config:
+    repo_name: str
+    api_token: Annotated[str, "sensitive"]
+```
+
+```typescript
+export interface Config {
+  repoName: string;
+  /** @sensitive */
+  apiToken: string;
+}
+```
+
+The same blueprint marked in any of the three produces the same schema,
+so porting a blueprint between languages does not change what it
+protects.
+
+## What gets recorded
+
+The arguments that are safe, plus the names of the ones that are not:
+
+```console
+      source: blueprint ci-platform:sha256:9f2a1c7b4e8d…
+        declared as oci://ghcr.io/ubx-blueprints/ci-platform:v2
+        called with queue_name = "payments-orders"
+        api_token was declared sensitive, so its value was never recorded
+```
+
+The withheld argument is named. That it was given is a fact worth
+keeping, and it is a different fact from a parameter nobody set, so
+`ubx why` says which of the two happened.
+
+## What it does not do
+
+This governs **recording** and nothing else. A blueprint receives a
+sensitive argument exactly as it receives any other and can use it
+however it likes. Nothing traces the value through your blueprint or
+constrains what it does with it.
+
+In particular, if your blueprint passes the value into a resource
+attribute, whether that attribute is protected is decided by the
+provider's own schema, not by this. Those are two separate mechanisms
+answering to different authorities, and marking a parameter sensitive
+does not reach into the resource your blueprint creates.
+
+<Note>
+A blueprint with sensitive parameters is packaged at
+`blueprint.schema.json` version 2. An older `ubx` refuses it rather than
+reading it, deliberately: a version that does not understand which
+parameters carry credentials has no safe way to record what a call was
+made with. Upgrade `ubx` rather than repackaging without the marker.
+</Note>
+
+## See also
+
+- [Blueprints](/concepts/blueprints)
+- [Secrets](/concepts/secrets) for provider-level sensitive attributes,
+  which is the separate mechanism above
+- [`ubx why`](/cli-reference/why)

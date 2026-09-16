@@ -259,6 +259,14 @@ second login. These subcommands are the whole real surface, there's
 none for discovery, no `search`, no `list` against a registry. A
 `pull` source is always a ref you already have in hand.
 
+### Sensitive parameters
+
+A parameter can be declared `sensitive`, so its argument is recorded as
+given but never recorded as a value. `package` refuses a sensitive
+parameter that also has a default, because an `Ubxfile` ships inside the
+artifact and the default would be distributed with it. See
+[Sensitive Parameters](/concepts/blueprint-sensitive-params).
+
 ## See also
 
 - [Blueprints](/concepts/blueprints)
