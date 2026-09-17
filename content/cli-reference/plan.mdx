@@ -144,6 +144,39 @@ deliberate change is still what it holds: once an ordinary change lands on
 top, the note stops, and an accepted-but-unshipped restore never triggers
 it because it has not set anything yet.
 
+### An empty plan can still be missing something
+
+`ubx plan` compares what your stack declares against what the ledger
+holds, and proposes the changes that close the gap. It does **not**
+propose removing a resource just because nothing declares it any more.
+
+So deleting a resource's declaration, or dropping a blueprint call that
+produced several, leaves those resources exactly where they are, and the
+next plan reads:
+
+```console
+delta: +0 ~0 -0
+```
+
+That is correct and it is easy to misread. The plan is saying nothing
+needs changing, not that nothing is there.
+
+This is deliberate and permanent. A destroy is always explicit and named
+by address, never inferred from a declaration going missing, because
+inferring destruction from silence turns a deleted line or a bad merge
+into an outage. The same rule is why
+[`ubx resolve`](/cli-reference/resolve) refuses to guess.
+
+<Warning>
+A resource whose declaration is gone is still real, still costing money,
+and no longer managed by anything. Nothing will propose changing it and
+nothing will warn you about it, because every warning is about resources
+a plan is going to touch.
+
+To remove it, name it: [`ubx terminate`](/cli-reference/terminate) takes
+an address. To manage it again, declare it again.
+</Warning>
+
 ## See also
 
 - [The Proposal](/concepts/proposal)
