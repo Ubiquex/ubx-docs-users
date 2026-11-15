@@ -1,12 +1,12 @@
 ---
 title: "MCP Server"
-description: "Read-only assistant access to your own ledger and live infrastructure."
+description: "An assistant can read your infrastructure and propose changes. Only you can approve one."
 ---
 
 Asking an AI assistant a question about your infrastructure, "why does
-this queue have a 14 day retention", is genuinely useful. Letting that
-same assistant accidentally change something while looking for the
-answer is a very different, much riskier thing. Those two capabilities
+this queue have a 14 day retention", is genuinely useful. Letting it
+propose a change is useful too. Letting it approve its own change is
+not: an approval nobody gave is not an approval. Those capabilities
 need to stay separate.
 
 ## How it works
@@ -22,21 +22,34 @@ Ubx exposes a real MCP server so an assistant can call commands like
 }
 ```
 
-Against your ledger and your live infrastructure, every tool this
-server exposes is read-only. Nothing it offers can create, modify, or
-destroy a real resource, by design, not by convention. A separate group
-of tools helps an assistant author a blueprint, a reusable pattern, not
-a live resource, see
+Started like that, every tool is read-only against your ledger and live
+infrastructure. A separate group of tools helps an assistant author a
+blueprint, a reusable pattern, not a live resource; see
 [AI-Assisted Blueprint Authoring](/concepts/mcp-blueprint-tools) for
-what those cover and where the same line gets drawn again.
+what those cover.
 
-## Why exposing write access "just in case" doesn't work
+Start it with `--serve <stack-root>` and the assistant can also propose
+changes to that stack, with `plan`, and apply them, with `apply`. But
+`apply` refuses until you have approved the change, and **no tool
+approves**. You approve on a page the server shows you on your own
+machine: the change itself, rendered from the proposal, with the
+assistant's own description labelled as unchecked. The ledger then
+records that someone at your machine approved it, and keeps the exact
+page you saw. See [`ubx mcp`](/cli-reference/mcp) for the full sequence.
 
-An assistant that could both answer questions and make changes would
-mean every question you ask carries a small, real risk of an unintended
-side effect. Keeping the server strictly read-only removes that risk
-entirely, an assistant connected this way can help you understand your
-infrastructure, never change it.
+## Why there is no approve tool
+
+A gate an assistant can open is not a gate. Guarding an approve tool
+with a permission or a token does not help, because the assistant would
+have to hold whatever opens it. A tool that does not exist cannot be
+called, misconfigured, or talked into anything, so approval lives
+somewhere the assistant has no tool for at all.
+
+The record is honest about its limits. The page proves someone at the
+machine clicked approve, not who, and it records `loopback:presence`
+rather than a name nobody verified. A program with a shell on the same
+machine could post the form too, so serve stacks to an assistant in an
+environment where that is not a concern.
 
 ## What this actually looks like
 
@@ -54,10 +67,11 @@ the same data, just reachable through a different interface.
 ## Why it matters
 
 You get real, grounded answers about your own infrastructure's actual
-history, from an assistant that structurally cannot change anything
-while helping you understand it.
+history, and changes an assistant can draft but never approve, each one
+carrying a record of what you were shown when you said yes.
 
 ## See also
 
 - [AI-Assisted Blueprint Authoring](/concepts/mcp-blueprint-tools)
 - [`ubx mcp`](/cli-reference/mcp)
+- [`ubx verify`](/cli-reference/verify)
