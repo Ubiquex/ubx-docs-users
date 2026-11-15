@@ -1,40 +1,33 @@
 ---
 title: "ubx render"
-description: "Emit a diagram or readable document of current state, or generate override statements from real drift."
+description: "Generate blueprint override statements from real drift, in the calling stack's own SDK language."
 ---
 
-`ubx render` is a pure projection, it never writes to the ledger. By
-default it emits the canonical D2 diagram of a stack's own resolved
-shape. With `--md`, the same underlying read produces a readable
-markdown document instead. A third, genuinely different mode,
-`--sync-overrides`, generates real override statements directly from
-live drift, mechanically, with zero AI.
+`ubx render` generates override statements directly from live drift,
+mechanically, with zero AI. For one drifted resource (`--from-drift`)
+or every drifted resource in a stack (`--sync-overrides`), it writes the
+override that would pin the resource's current, drifted values, in the
+calling stack's own SDK language. It never writes to the ledger.
+
+It used to also project a stack's current state as a D2 diagram or,
+with `--md`, a markdown document. Those outputs, and `--md`, `--out`
+and `--check` with them, are gone: with an agent authoring changes and
+the ledger recording them, nobody was reading a committed projection.
+[`ubx status`](/cli-reference/status) and [`ubx why`](/cli-reference/why)
+answer what exists and how it got that way.
 
 ## Usage
 
 ```bash
-ubx render --stack <stack> [--md] [--out <file>] [--check]
-ubx render --stack <stack> --md --sync-overrides
+ubx render [flags]
 ```
 
 ## Examples
 
-The default diagram:
-
-```bash
-ubx render --stack payments --out platform.d2
-```
-
-A readable current-state document:
-
-```bash
-ubx render --stack payments --md
-```
-
 Generating override statements from real drift:
 
 ```bash
-ubx render --stack payments --md --sync-overrides
+ubx render --stack payments --sync-overrides
 ```
 
 ```bash
@@ -43,59 +36,51 @@ sdk.Override("payments.aws_sqs_queue.pipeline-events", map[string]any{
 })
 ```
 
+One drifted resource only:
+
+```bash
+ubx render --stack payments --from-drift payments.aws_sqs_queue.pipeline-events
+```
+
 ## Flags
 
 <ResponseField name="--stack" type="string">
-  Which stack to render. Required.
-</ResponseField>
-
-<ResponseField name="--md">
-  Emit a markdown current-state document instead of the default D2 diagram.
-</ResponseField>
-
-<ResponseField name="--out" type="string">
-  Write the rendered file here instead of stdout.
-</ResponseField>
-
-<ResponseField name="--check">
-  Byte-compare against `--out`'s current content, exit `1` on any difference. Requires `--out`.
+  Which stack. Required: override generation always covers exactly one stack.
 </ResponseField>
 
 <ResponseField name="--from-drift" type="string">
-  Generate one override statement for a single drifted address. Requires `--md`.
+  Generate a single override statement for one drifted resource's address. Mutually exclusive with `--sync-overrides`.
 </ResponseField>
 
 <ResponseField name="--sync-overrides">
-  Walk the whole stack's drift, generating an override statement for every drifted resource. Requires `--md`.
+  Walk the whole stack's drift and generate an override statement for every drifted resource.
 </ResponseField>
 
 <ResponseField name="--source / --provider-version / --provider" type="string">
-  Provider selection, only used with `--from-drift`/`--sync-overrides`.
+  Provider selection. `--provider` and `--source` are mutually exclusive; `--source` requires `--provider-version`.
 </ResponseField>
 
 <ResponseField name="--provider-config" type="string" default="{}">
-  JSON object configuring the provider, only used with `--from-drift`/`--sync-overrides` (default `{}`).
+  JSON object configuring the provider (default `{}`).
 </ResponseField>
 
 <ResponseField name="--ledger-dir" type="string" default=".">
   Root directory containing `ledger/` and `.ubx/` (default `.`).
 </ResponseField>
 
-<ResponseField name="--timeout" type="string" default="60s">
-  Timeout for the drift scan, only with `--from-drift`/`--sync-overrides` (default `60s`).
+<ResponseField name="--timeout" type="string" default="1m0s">
+  Overall timeout for the drift scan (default `1m0s`).
 </ResponseField>
 
 ## Notes
 
-`--check` is meant for CI: it never writes, only confirms a committed
-rendered file still matches current resolved state, failing loudly if
-it's gone stale. `--sync-overrides` is entirely mechanical, it reads the
-same real drift comparison `ubx status --drift` already computes and
-templates it into the calling stack's own SDK language, auto-detected,
-never guessed.
+One of `--from-drift` or `--sync-overrides` is required. Both are
+entirely mechanical: they read the same real drift comparison
+`ubx status --drift` already computes and template it into the calling
+stack's own SDK language, auto-detected, never guessed.
 
 ## See also
 
-- [Writeback](/concepts/writeback)
+- [Blueprint Overrides](/concepts/blueprint-overrides)
 - [Drift, Adoption & Revert](/concepts/drift)
 - [`ubx status`](/cli-reference/status)
