@@ -21,7 +21,6 @@ const SECTIONS = [
   { dir: "tutorial", label: "Tutorial" },
   { dir: "cli-reference", label: "CLI reference" },
   { dir: "integrations", label: "Integrations" },
-  { dir: "server", label: "Server" },
 ];
 
 function frontmatter(raw) {

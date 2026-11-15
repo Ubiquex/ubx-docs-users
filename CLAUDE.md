@@ -3,8 +3,9 @@
 ## What this is
 
 The user-facing documentation for `ubx` (UBI-247), a Next.js static
-export at [docs.ubiquex.io](https://docs.ubiquex.io). Six sections,
-147 pages, all hand-written MDX living in this repo. That is the
+export at [docs.ubiquex.io](https://docs.ubiquex.io). Five sections
+(the Server section went with `ubx server`, UBI-300), 114 pages, all
+hand-written MDX living in this repo. That is the
 difference from
 [`ubx-docs-providers`](https://github.com/Ubiquex/ubx-docs-providers),
 whose content is fetched artifacts generated from real provider

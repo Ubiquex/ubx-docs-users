@@ -73,14 +73,7 @@ export const SECTIONS: Section[] = [
     slug: "integrations",
     label: "Integrations",
     description:
-      "Wiring ubx into GitHub Actions, GitLab CI, Azure DevOps, CircleCI, Bamboo, and AI assistants.",
-    ready: true,
-  },
-  {
-    slug: "server",
-    label: "Server",
-    description:
-      "Running ubx server: configuration, deployment, and the API it exposes.",
+      "Wiring ubx into AI assistants over MCP, and watching provider versions.",
     ready: true,
   },
 ];

@@ -96,17 +96,8 @@ pin chain (2 hops):
   Which stack's ledger to open, for a bare proposal ID. Required only for a remote ledger store.
 </ResponseField>
 
-<ResponseField name="--verify-acceptance">
-  Re-derive a `pr_merge` proposal's acceptance against real git history and the GitHub API, and report whether it still checks out.
-</ResponseField>
 
-<ResponseField name="--repo-dir" type="string" default=".">
-  Local git working tree for `--verify-acceptance` (default `.`).
-</ResponseField>
 
-<ResponseField name="--github-repo" type="string">
-  `owner/name` of the GitHub repository, for the reviewer re-check half of `--verify-acceptance`.
-</ResponseField>
 
 <ResponseField name="--dialogue">
   If this proposal came from `ubx chat`, show the real conversation behind it.
@@ -181,5 +172,4 @@ completely separate code path this rendering never touches.
 
 - [The Ledger](/concepts/ledger)
 - [Attribution](/concepts/attribution)
-- [PR-Merge Acceptance](/concepts/pr-merge-acceptance)
 - [The Audit Surface](/concepts/audit-surface)

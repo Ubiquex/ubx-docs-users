@@ -7,9 +7,8 @@ This is the auditor's command, the one that makes "independently
 verifiable" a real, checkable claim instead of a slogan. It re-checks
 everything without trusting a single already-computed value: every
 proposal's own hash against its own ID, every parent link, every sealed
-apply record, every redacted marker's real shape. Given a real git
-directory, it re-derives every PR-merge acceptance too. Loopback
-acceptances need nothing extra: it re-checks them from the ledger alone.
+apply record, every redacted marker's real shape. Loopback acceptances
+need nothing extra: it re-checks them from the ledger alone.
 
 ## Usage
 
@@ -80,21 +79,12 @@ verify: 0 chain finding(s), 1 acceptance re-derivation(s) failed -- see above
   Which stack to verify. Required only for a remote ledger store.
 </ResponseField>
 
-<ResponseField name="--repo-dir" type="string">
-  Local git working tree to re-derive `pr_merge` acceptances against. Omitted, they're reported inconclusive, not skipped silently.
-</ResponseField>
 
-<ResponseField name="--github-repo" type="string">
-  Repository for the reviewer re-check half of PR-merge re-derivation.
-</ResponseField>
 
 <ResponseField name="--json">
   Emit one JSON document instead of human text.
 </ResponseField>
 
-<ResponseField name="--timeout" type="string" default="1m">
-  Timeout per PR-merge re-derivation call (default `1m`).
-</ResponseField>
 
 ## Notes
 
@@ -104,6 +94,30 @@ them against. Reporting one as fully "verified" would be exactly the
 kind of rounding-up this command exists to refuse. "Couldn't check" and
 "checked and found a problem" are always kept distinct, never collapsed
 into one result.
+
+## Acceptances from a removed method
+
+Ledgers can hold acceptances made earlier by merging or approving a pull
+request (`pr_merge`, `pr_review`). Those methods have been removed, along
+with the pull-request workflow that produced them. Their records are
+history: they still read, the chain they sit in still verifies, and
+`ubx verify` reports them as exactly what they are, never as verified
+and never as a failure. They do not change the exit code.
+
+```bash
+ubx verify
+```
+
+```bash
+verify: 2 proposal(s) checked
+chain: intact
+acceptance: 0 re-derived, 0 convenience-tier (local), 0 inconclusive, 2 from a removed method (not re-verified)
+  92875f548398ac39bec2bda8ef74e0930fda2cf8d548eb3ae71d51741b92ee91 (pr_merge): NOT RE-VERIFIED -- pr_merge, approval derived from a merged pull request: a removed acceptance method (UBI-300), recorded as history and no longer re-verifiable
+  93b4ca7bd91b1a6f0efd915db98cb3929a399839e9411aa8adf419c5d9f2f9a8 (pr_review): NOT RE-VERIFIED -- pr_review, approval derived from a pull request review: a removed acceptance method (UBI-300), recorded as history and no longer re-verifiable
+```
+
+With `--json`, `acceptance.removed_method` counts them and each check
+carries `"removed_method": true`.
 
 ## Loopback acceptances
 
@@ -143,5 +157,4 @@ A failed check exits 1. An inconclusive one does not change the exit code.
 ## See also
 
 - [Hash-Chain Verification](/concepts/verification)
-- [PR-Merge Acceptance](/concepts/pr-merge-acceptance)
 - [The Audit Surface](/concepts/audit-surface)
