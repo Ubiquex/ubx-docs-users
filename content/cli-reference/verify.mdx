@@ -8,7 +8,8 @@ verifiable" a real, checkable claim instead of a slogan. It re-checks
 everything without trusting a single already-computed value: every
 proposal's own hash against its own ID, every parent link, every sealed
 apply record, every redacted marker's real shape. Given a real git
-directory, it re-derives every PR-merge acceptance too.
+directory, it re-derives every PR-merge acceptance too. Loopback
+acceptances need nothing extra: it re-checks them from the ledger alone.
 
 ## Usage
 
@@ -40,6 +41,33 @@ ubx verify
 verify: 47 proposal(s) checked
   8224643bbbc5...: hash_mismatch -- recomputed hash does not match parent reference
 chain: BROKEN (1 finding(s), see above)
+```
+
+A loopback acceptance that checks out:
+
+```bash
+ubx verify
+```
+
+```bash
+verify: 1 proposal(s) checked
+chain: intact
+acceptance: 1 re-derived, 0 convenience-tier (local), 0 inconclusive
+  23f09fe5b62c338e4d309d165b033d8fd70e56499f1091198eb6a7500b04dd0c (loopback): VERIFIED -- the stored render is intact and is exactly what this proposal renders to; it attests presence at the machine, not identity
+```
+
+The same ledger after the stored render was deleted:
+
+```bash
+ubx verify
+```
+
+```bash
+verify: 1 proposal(s) checked
+chain: intact
+acceptance: 1 re-derived, 0 convenience-tier (local), 0 inconclusive
+  23f09fe5b62c338e4d309d165b033d8fd70e56499f1091198eb6a7500b04dd0c (loopback): FAILED -- the ledger store holds no render under rendered_hash 2863eceeee2b78f886b0e40b9578aa2361f288f68204b5da2cf3a00fd026ab7d; what the approver saw cannot be shown
+verify: 0 chain finding(s), 1 acceptance re-derivation(s) failed -- see above
 ```
 
 ## Flags
@@ -76,6 +104,41 @@ them against. Reporting one as fully "verified" would be exactly the
 kind of rounding-up this command exists to refuse. "Couldn't check" and
 "checked and found a problem" are always kept distinct, never collapsed
 into one result.
+
+## Loopback acceptances
+
+A `loopback` acceptance is recorded when someone approves a change on
+the approval page the local MCP server serves. Along with the approval,
+it records `rendered_hash`: the hash of the exact page the approver was
+shown, which the ledger keeps.
+
+`ubx verify` checks three things, offline, from the ledger alone:
+
+1. The stored page exists.
+2. It still hashes to `rendered_hash`.
+3. Rendering the proposal again produces exactly those bytes.
+
+A pass means the record holds the real page the approval was given on,
+and that page is a faithful rendering of the proposal that was accepted,
+not a summary someone wrote about it.
+
+It does **not** say who approved. The loopback page proves that someone
+at the machine running the server clicked, nothing more, which is why
+the approver is recorded as `loopback:presence` rather than a name.
+Proving who approved needs a server that holds identity.
+
+Each failure is reported separately, and `--json` names it in `outcome`:
+
+| `outcome` | Result | Meaning |
+|---|---|---|
+| `verified` | pass | All three checks hold. |
+| `rendered_missing` | failed | The ledger no longer holds the page. What the approver saw cannot be shown, so the record is not treated as proven. |
+| `rendered_hash_mismatch` | failed | The stored page was altered after it was stored. |
+| `rerender_differs` | failed | The page is intact, but the proposal renders to something else with the same renderer. |
+| `no_rendered_hash` | failed | The acceptance names no page at all. |
+| `renderer_version_changed` | inconclusive | The page is intact, but a different version of the renderer produced it, so this binary cannot reproduce it. Not a failure, and not a pass. |
+
+A failed check exits 1. An inconclusive one does not change the exit code.
 
 ## See also
 
