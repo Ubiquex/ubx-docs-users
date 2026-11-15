@@ -6,45 +6,27 @@ description: "Emit the reconciliation steps for an accepted revert, never applie
 Once a `drift_revert` proposal is accepted, someone still has to
 actually make the correction happen in the real cloud. `ubx revert-plan`
 never does that itself, it emits exactly what needs to happen: a
-human-readable list of changed attributes, and, with `--tf-dir`, a real
-corrective diff for whatever's safely rewritable plus a manual-steps
-list for whatever isn't.
+human-readable list of every changed attribute, from its current
+(drifted) value back to the value the ledger records.
 
 ## Usage
 
 ```bash
-ubx revert-plan <proposal-id> [--tf-dir <dir>]
+ubx revert-plan <proposal-id> [flags]
 ```
 
 ## Examples
 
 ```bash
-ubx revert-plan 37b097a1d5e0...
+ubx revert-plan 2ab01fbf11e1
 ```
 
 ```bash
 --- plan ---
-payments.aws_sqs_queue.pipeline-events: message_retention_seconds: 1209600 -> 86400
+s.aws_instance.web: ami: "ami-new" -> "ami-old"
+s.aws_instance.web: instance_type: "t3.large" -> "t3.medium"
 
-no --tf-dir given -- make the correction above in cloud via your own tooling; ubx never makes it for you
-```
-
-With a `.tf` directory, a real corrective diff:
-
-```bash
-ubx revert-plan 37b097a1d5e0... --tf-dir ./terraform
-```
-
-```bash
---- plan ---
-payments.aws_sqs_queue.pipeline-events: message_retention_seconds: 1209600 -> 86400
-
---- .tf diff ---
---- main.tf (before)
-+++ main.tf (after)
-@@ -12,7 +12,7 @@
--  message_retention_seconds = 1209600
-+  message_retention_seconds = 86400
+make the correction above in cloud via your own tooling; ubx never makes it for you
 ```
 
 ## Flags
@@ -57,19 +39,18 @@ payments.aws_sqs_queue.pipeline-events: message_retention_seconds: 1209600 -> 86
   Which stack's ledger to open. Required only for a remote ledger store.
 </ResponseField>
 
-<ResponseField name="--tf-dir" type="string">
-  Directory of `.tf` files to compute a corrective diff against. Optional, never written to.
-</ResponseField>
-
 ## Notes
 
 This command never writes a file and never touches real infrastructure,
-on purpose. Making the actual correction, to source or to the live
-resource, is deliberately left to your own tooling, the executor's trust
-model doesn't yet extend to applying a revert automatically.
+on purpose. Making the actual correction to the live resource is
+deliberately left to your own tooling, the executor's trust model
+doesn't yet extend to applying a revert automatically.
+
+It exits `0` when the plan is emitted, and `2` on an error. It used to
+also offer a corrective `.tf` diff with `--tf-dir`, and exit `1` when
+some of it needed manual steps. That went with writeback: there are no
+source files for ubx to correct.
 
 ## See also
 
 - [Drift, Adoption & Revert](/concepts/drift)
-- [Writeback](/concepts/writeback)
-- [`ubx writeback`](/cli-reference/writeback)

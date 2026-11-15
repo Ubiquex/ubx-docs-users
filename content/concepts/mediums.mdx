@@ -42,12 +42,11 @@ Diagram was never a complete medium in the first place: it could only
 ever express topology (which resources exist, how they depend on each
 other), never a resource's own configuration. A diagram-authored
 resource with any schema-required attribute had nothing that could set
-it. It stayed useful for one thing this whole time, and still is:
-[`ubx render`](/cli-reference/render) draws the current, real shape of
-a stack as a D2 diagram, generated FROM ledger state rather than
-authored INTO it. That direction never had the determinism problem
-authoring did, since it's a read of already-accepted proposals, not a
-new one being drafted, and it's unaffected by any of this.
+it. Its read direction lasted longer: `ubx render` drew a stack's
+current shape as a D2 diagram, generated FROM ledger state rather than
+authored INTO it. That is gone too. Once an agent authors changes and
+the ledger records them, nobody was reading a committed projection;
+`ubx status` and `ubx why` answer what exists and how it got there.
 
 ## Why it matters
 

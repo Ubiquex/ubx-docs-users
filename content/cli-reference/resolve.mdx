@@ -1,12 +1,11 @@
 ---
 title: "ubx resolve"
-description: "Resolve a typed intent file, SDK program, or .ubx.hcl file into a draft change proposal."
+description: "Resolve a typed intent file or SDK program into a draft change proposal."
 ---
 
 `ubx resolve` is the lower-level building block underneath `ubx plan`,
 it takes an already-structured input, a hand-written `ubx:intent/v1`
-file, an SDK program, or a `.ubx.hcl` blueprint-calling file, and turns
-it into a real draft proposal. Unlike `plan`, it doesn't render a
+file or an SDK program, and turns it into a real draft proposal. Unlike `plan`, it doesn't render a
 receipt or save anything for you, it just does the resolution and
 prints the result.
 
@@ -20,7 +19,6 @@ absent, and it's refused if another live resource still depends on it.
 ```bash
 ubx resolve <intent-file> [flags]
 ubx resolve <entry>.ts|.go|.py [flags]
-ubx resolve <entry>.ubx.hcl [flags]
 ```
 
 ## Examples
@@ -32,12 +30,6 @@ ubx resolve create_platform.go
 ```bash
 resolved: payments: 1 create(s), 0 change(s), 0 terminate(s)
 { "schema_version": 1, "kind": "change", "delta": { "creates": [ "..." ] } }
-```
-
-A `.ubx.hcl` file resolves the same way, no separate flag or command:
-
-```bash
-ubx resolve platform.ubx.hcl
 ```
 
 ## Flags
